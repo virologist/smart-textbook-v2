@@ -2,6 +2,33 @@
 
 > 本包遵循 [Keep a Changelog](https://keepachangelog.com/) 格式。
 
+## [3.0.1] — 2026-11-03
+
+### 修复（独立第三方复验批次 P4）
+
+本次为修复补丁版本，无新增功能。两项修复均源于独立第三方复验（立项 C）实测发现的问题。
+
+- **探针基础设施前置健康检查（B-1）**：`check_log_schema.py` 与 `check_tool_degradation.py` 现于探针执行**前**调用 `probe_health_check()`。
+  - 原缺陷：公共设施（如相位 SSOT）损坏时，`phase_states()` 返回空列表 → 所有合法相位被判「相位非法」→ 探针因**错误原因**而全中 → **假绿**（exit 0）。
+  - 修复后：公共设施失效 → 探针整体 exit 1，不给出误导性结论。
+- **删除 `is_infra_error()` 子串黑名单机制（B-3）**：以「消息子串黑名单」推断失败成因属**原理性错误**——无法区分「同形异因」消息（实测误判率 7/9，其中 `phase 非法` 恰为真实违规文案）。该机制已**整体删除**，其设计意图（拦截因错误原因而通过的探针）已由前置健康检查完整覆盖。
+  - 保留替代：判据函数自身抛异常 → 计入漏放（探针异常 ≠ 拦截成功）。
+  - **包内补修说明**：P4 首次修复仅覆盖主仓 + 包内 `scripts/gates/_common.py`，包内 `scripts/_common.py` 的同名副本仍残留死代码（无任何调用点）。发布前复验发现并补修，包内两份 `_common.py` 现与主仓 `scripts/gates/_common.py` **逐字节一致**（sha1 `a5e2fba1a6e3d654dc0e0c9ce58fd7a03c6dc494`）。
+- 涉及文件：`scripts/check_log_schema.py` · `scripts/check_tool_degradation.py` · `scripts/_common.py` · `scripts/gates/_common.py` · `scripts/gates/g1_state_phase.py` · `scripts/gates/g2_quality_citation.py` · `scripts/gates/g3_figure_naming.py` · `scripts/gates/g4_rules_files.py` · `scripts/gates/g5_flow_health.py`
+
+### 验证
+
+- 包内门禁 12 道全 exit 0；探针 11 组（6 脚本级 + 5 gates 级）全 exit 0
+- 包契约自检 M1–M12 通过（0 error / 0 warning）
+- SSOT 故障态探针实测：3 道全 exit 1（不再假绿）——注入 `main_path` 键损坏后，`check_log_schema` / `check_tool_degradation` / `g1_state_phase` 探针均报「公共设施失效，探针结果不可信」
+- 发布物自检：zip 解压副本上包契约 + 探针复跑全 exit 0
+
+### 已知遗留
+
+- `tests/` 目录为空（包内不随包分发测试代码）
+- 命名门禁双端覆盖面不等价：主端扫描 84 文件（含规则层），包端扫描 47 文件（不扫规则层）
+- M11 后缀白名单未覆盖 `.txt` / `.csv` / `.ipynb`
+
 ## [3.0.0] — 2026-11-02
 
 ### 架构重构（自 content-forge v5 / tb-writer）

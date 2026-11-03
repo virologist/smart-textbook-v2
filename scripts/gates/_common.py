@@ -303,14 +303,16 @@ def apply_baseline(findings: list[Finding], entries: Iterable[dict]) -> list[Fin
 # 问题：探针框架只断言「有问题」，不判「违规类型正确」。于是当**公共设施失效**
 # （如 SSOT 路径错 → 相位枚举返回空）时，多个探针会因**同一个错误原因**通过——
 #   例：日志门禁的「DEGRADE 缺 fallback_to」探针，实际被「phase 非法」顶过。
-# 对策：① 探针开始前做基础设施健康前置检查（坏则整体失败）② 探针命中时断言
-#   问题**不是**基础设施类错误（否则同样算漏放）。
-INFRA_ERROR_MARKERS = (
-    "非法", "无法读取", "未找到", "Traceback", "phase 非法", "状态非法",
-    "不可用", "缺失权威", "无法解析", "no such file",
-)
-
-
+# 对策：**探针开始前做基础设施健康前置检查，坏则整体失败**。
+#
+# P3 · 独立复验 B-3 修复记录（2026-11-03）：
+#   原实现另有「② 探针命中时断言问题不是基础设施类错误」，用**消息子串黑名单**
+#   （INFRA_ERROR_MARKERS）推断成因。独立复验实测：黑名单含 `非法`/`不可用`/
+#   `未找到`/`无法解析` 等泛化中文词，与真实违规文案直接重叠——**误判率 7/9**，
+#   其中 `phase 非法` 恰是 check_log_schema S5 的**真违规文案**。子串黑名单在原理上
+#   无法区分「同形异因」消息，故**整体删除该机制**；其设计意图（拦截因错误原因而
+#   通过的探针）已由前置健康检查完整覆盖——基础设施失效在探针开始前即被拦下。
+#   保留替代：判据函数自身抛异常 → 计入漏放（探针异常 ≠ 拦截成功）。
 def probe_health_check(root: Path) -> list[str]:
     """探针前置健康检查：公共设施不可用时返回问题列表（探针须整体失败）。"""
     problems: list[str] = []
@@ -331,11 +333,6 @@ def probe_health_check(root: Path) -> list[str]:
     if not next_valid_map(root):
         problems.append("状态机跃迁表为空（SSOT 异常）")
     return problems
-
-
-def is_infra_error(message: str) -> bool:
-    """判断一条问题是否属于「基础设施类错误」（不可用于充当探针的预期违规）。"""
-    return any(m in message for m in INFRA_ERROR_MARKERS)
 
 
 
