@@ -170,12 +170,35 @@ def check_name(rel: str, name: str) -> list[str]:
     return errs
 
 
-def iter_files():
-    # 系统规则层
-    roots = [PKG_ROOT / d for d in SCAN_DIRS]
+def iter_files_rel():
+    """产出 (文件, 相对路径) —— 相对路径基于其所属 root
+
+    A-1 修复（2026-11-03）：
+      ① 原 `roots = [PKG_ROOT / d for d in SCAN_DIRS]` 把扫描根指向**包根**，
+         但 `00-系统规则` 是**教材工作区**的规则层，包内并无该目录 → 该 root
+         恒为空 → **包端规则层扫描 100% 失效**（实测包端 48 文件 vs 主端 84，
+         差额恰为主端 `00-系统规则/` 的 37 个）。
+         修正：规则层 root 指向 WORKSPACE_ROOT（被检工作区），包根只提供 SSOT 与
+         baseline——与包内其余脚本的双根语义一致（`_ssot_path()` 优先包根）。
+      ② 原 `iter_files()` 的 `.py` 豁免判据 `rel_parts[0].startswith("tb_")`
+         以**所属 root** 为基准 → 教材实例层的 rel_parts[0] 是 `章节` 而非
+         `tb_*` → **豁免失效**（实测某教材实例的 `章节/*/assets/*.py`
+         被多扫）。修正：改为按 root 性质判定。
+      ③ `iter_files()` 与 `iter_files_rel()` 曾是两份**平行实现**，修复覆盖面易漂移
+         （本轮包内 B-3 死代码残留即同类根因）。现合并为**单一实现**，
+         `iter_files()` 退化为其薄封装。
+      ④ 相对路径基准统一为 **WORKSPACE_ROOT**（与主端 REPO_ROOT 对齐）：
+         规则层文件 rel = `00-系统规则/01-状态机.md`、实例层 = `tb_*/章节/...`。
+         理由：baseline 条目是 `sha1(rel 字符串)`，基准不同则哈希不同 → 双端
+         baseline 互不认、且「新增同名文件违规必红」的保证在跨端场景失效。
+         实测双端 `_naming_baseline.json` 条目完全一致，即基线本就以工作区相对
+         路径生成 —— 修正后双端可互认。
+    """
+    # 系统规则层（在被检工作区，不在包内）
+    roots = [(WORKSPACE_ROOT / d, "rules") for d in SCAN_DIRS]
     # 教材实例层（教材层规则 + 章节层正式文件）
-    roots += sorted(p for p in WORKSPACE_ROOT.glob("tb_*") if p.is_dir())
-    for base in roots:
+    roots += [(p, "instance") for p in sorted(WORKSPACE_ROOT.glob("tb_*")) if p.is_dir()]
+    for base, layer in roots:
         if not base.is_dir():
             continue
         for p in sorted(base.rglob("*")):
@@ -188,39 +211,34 @@ def iter_files():
             if any(part.startswith(".") for part in rel_parts):
                 continue
             # 章节层脚本/工具产物非正式文档对象（正式文档 = md/yaml/json）
-            if rel_parts[0].startswith("tb_") and p.suffix == ".py":
+            # —— 仅**教材实例层**豁免；系统规则层的 .py 属正式对象，须受检。
+            if layer == "instance" and p.suffix == ".py":
                 continue
             if p.name.startswith(".") or p.name.startswith("_"):
                 continue
-            yield p
+            yield p, str(p.relative_to(WORKSPACE_ROOT))
 
 
-def iter_files_rel():
-    """产出 (文件, 相对路径) —— 相对路径基于其所属 root"""
-    roots = [PKG_ROOT / d for d in SCAN_DIRS]
-    roots += sorted(p for p in WORKSPACE_ROOT.glob("tb_*") if p.is_dir())
-    for base in roots:
-        if not base.is_dir():
-            continue
-        for p in sorted(base.rglob("*")):
-            if not p.is_file() or p.suffix not in SCAN_SUFFIX:
-                continue
-            rel_parts = p.relative_to(base).parts
-            if any(part in SCAN_EXCLUDE_PARTS for part in rel_parts):
-                continue
-            if any(part.startswith(".") for part in rel_parts):
-                continue
-            if str(base).startswith(str(WORKSPACE_ROOT)) and p.suffix == ".py":
-                continue
-            yield p, str(p.relative_to(base))
+def iter_files():
+    """产出 (文件) —— 委托 iter_files_rel()，避免双实现漂移"""
+    for p, _rel in iter_files_rel():
+        yield p
 
 
-def scan() -> tuple[dict[str, list[str]], set[str]]:
-    """扫描全部文件 → (违规映射 {rel: errs}, baseline 命中集合)"""
+
+def scan() -> tuple[dict[str, list[str]], set[str], int]:
+    """扫描全部文件 → (违规映射 {rel: errs}, baseline 命中集合, 实际扫描文件数)
+
+    A-1 修复配套（2026-11-03）：原报告用 `len(SCAN_DIRS)`（配置常量长度）
+    表示「扫描目录 N 个」——与实际扫描范围脱节（实例层教材目录未计入）。
+    按既有口径纪律（A-3：三种口径须区分），改为如实报告**实际扫描文件数**。
+    """
     baseline = load_baseline()
     violations: dict[str, list[str]] = {}
     baselined: set[str] = set()
+    scanned = 0
     for p, rel in iter_files_rel():
+        scanned += 1
         errs = check_name(rel, p.name)
         if not errs:
             continue
@@ -228,7 +246,7 @@ def scan() -> tuple[dict[str, list[str]], set[str]]:
             baselined.add(rel)
             continue
         violations[rel] = errs
-    return violations, baselined
+    return violations, baselined, scanned
 
 
 def probe_negatives() -> int:
@@ -278,7 +296,7 @@ def main() -> int:
         print(f"✗ 命名规范权威源缺失: {NAMING_SSOT}")
         return 2
 
-    violations, baselined = scan()
+    violations, baselined, scanned = scan()
 
     if args.write_baseline:
         entries = set()
@@ -298,8 +316,8 @@ def main() -> int:
             print(f"✗ {rel}: {e}")
 
     print()
-    print(f"扫描目录 {len(SCAN_DIRS)} 个 · 新增违规 {len(violations)} 处 · "
-          f"baseline 豁免 {len(baselined)} 处")
+    print(f"扫描文件 {scanned} 个（规则层 {len(SCAN_DIRS)} 个目录 + 教材实例层）· "
+          f"新增违规 {len(violations)} 处 · baseline 豁免 {len(baselined)} 处")
     if violations:
         print("✗ 命名合规检查未通过（新增违规必须修复；存量已在 baseline 白名单）")
         return 1

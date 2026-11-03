@@ -1,6 +1,6 @@
 {
   "name": "smart-textbook-v2",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "Smart textbook authoring team v2: rule-inheritance engine (3-layer inherit/override/derive with provenance), gap-driven quantified knowledge closure, figure pipeline with registry and renumber reconciliation, and 32 executable gate criteria. Supports any discipline from vocational to graduate level.",
   "author": {
     "name": "TZUVet",

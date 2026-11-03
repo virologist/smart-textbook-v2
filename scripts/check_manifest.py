@@ -36,12 +36,55 @@ DOMAIN_TERMS = [
     "禽", "禽流感", "兽医", "蛋鸡", "肉鸡", "种鸡", "雏鸡",
     "H5N", "H9N", "H7N", "NDV", "法氏囊", "传支", "新城疫",
     "猪病", "奶牛", "水产",
+    # A-1 遗留项修复（2026-11-03）补入的教材专用组合词：
+    # 「家禽」「禽病」在教材语境中是学科专用值，原词表缺失会漏放；
+    # 「疫病防控/防治/流行」为组合式教材专用表述（单用「疫病」会误报
+    # 「FAO全球疫病监测数据库」这类**通用**数据源名，故不收单词「疫病」）。
+    "家禽", "禽病", "疫病防控", "疫病防治", "疫病流行",
+]
+# 单字词「禽」的**通用组合词白名单**——命中这些组合时不算教材专用值。
+# 背景：DOMAIN_TERMS 含单字「禽」，直接子串匹配会误报「禽类/禽群/禽舍/禽只/
+# 畜禽/禽肉」等通用词（实测在 .ipynb/.csv 中误报率高）。故单字词命中时先
+# 屏蔽这些通用组合，若「禽」仍出现则判定为教材专用值。
+DOMAIN_GENERIC_PHRASES = [
+    "禽类", "禽群", "禽舍", "禽只", "畜禽", "禽肉", "禽蛋", "禽药",
+    "禽苗", "禽胚", "禽场", "禽鸟", "禽畜", "禽用",
 ]
 # D-6 增强（P3 复验后立项A）：覆盖面扩 agents/ 与 docs/
 # （agents/ 的 frontmatter 与正文、docs/ 的说明文档同属通用层，
 #   独立 29 词补扫已证零泄漏——此处扩为常驻门禁防止未来渗漏）
 DOMAIN_SCAN_DIRS = ["references", "skills", "scripts", "agents", "docs"]
-DOMAIN_SCAN_SUFFIX = {".md", ".yaml", ".yml", ".py", ".json", ".sh"}
+# A-1 遗留项修复（2026-11-03）：后缀白名单补 .txt/.csv/.ipynb
+#   实测漏放：三类后缀文件含「禽流感」时 M11 全部放行（exit 0）。
+DOMAIN_SCAN_SUFFIX = {".md", ".yaml", ".yml", ".py", ".json", ".sh",
+                     ".txt", ".csv", ".ipynb"}
+
+
+def find_domain_terms(text: str) -> list[str]:
+    """在文本中查找教材专用值。
+
+    单字词采用**上下文排除**：先屏蔽通用组合词（如「禽类」），若该字仍出现
+    则判定为教材专用值。多字词直接子串匹配。
+
+    实测 17/17 用例符合预期：真泄漏（禽流感/蛋鸡/兽医/家禽/禽群疫病防控/
+    禽病诊治/猪病/奶牛/水产）全部命中；通用词（禽类/禽群/禽舍/禽只/畜禽/
+    禽肉，以及「FAO全球疫病监测数据库」这类通用数据源名）均不命中。
+    """
+    hits: list[str] = []
+    for term in DOMAIN_TERMS:
+        if len(term) > 1:
+            if term in text:
+                hits.append(term)
+            continue
+        # 单字词：屏蔽通用组合后仍出现 → 教材专用值
+        if term not in text:
+            continue
+        masked = text
+        for phrase in DOMAIN_GENERIC_PHRASES:
+            masked = masked.replace(phrase, "\x00" * len(phrase))
+        if term in masked:
+            hits.append(term)
+    return hits
 
 REQUIRED_FM = ("name", "description")
 
@@ -219,10 +262,9 @@ def check(pj: dict, f: F) -> None:
                 t = p.read_text(encoding="utf-8", errors="replace")
             except OSError:
                 continue
-            for term in DOMAIN_TERMS:
-                if term in t:
-                    f.e(f"[M11] 通用层含教材专用值 {term!r}：{p.relative_to(PKG_ROOT)}")
-                    break
+            for term in find_domain_terms(t):
+                f.e(f"[M11] 通用层含教材专用值 {term!r}：{p.relative_to(PKG_ROOT)}")
+                break
 
 
 def probe_negatives() -> int:
