@@ -41,7 +41,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "gates"))
 from _common import (  # noqa: E402
     EXIT_OK, EXIT_VIOLATION, Finding, SEVERITY_ERROR, SEVERITY_WARN,
     add_common_args, apply_baseline, baseline_load, discover_chapters,
-    discover_textbooks, finish, rel_path, report, resolve_root,
+    discover_textbooks, finish, probe_health_check, rel_path, report,
+    resolve_root,
 )
 
 GATE_TITLE = "工具降级链完整性校验"
@@ -216,6 +217,15 @@ def probe_negatives(root: Path) -> int:
 
     验收硬指标：探针 1（工具失败无 DEGRADE 记录）必须让校验器判为违规。
     """
+    # P3 · 独立复验 B-1：探针前置健康检查（与 gates 口径统一）
+    #   公共设施失效时探针结果不可信，必须整体失败而非「探针全中」。
+    health = probe_health_check(root)
+    if health:
+        print("✗ 探针前置健康检查未通过（公共设施失效，探针结果不可信）:")
+        for p in health:
+            print(f"    {p}")
+        return EXIT_VIOLATION
+
     cases: list[tuple[str, object, str]] = []
 
     with tempfile.TemporaryDirectory() as td:

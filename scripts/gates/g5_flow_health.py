@@ -42,7 +42,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import (  # noqa: E402
     EXIT_OK, EXIT_USAGE, EXIT_VIOLATION, Finding, SEVERITY_ERROR, SEVERITY_WARN,
     add_common_args, apply_baseline, baseline_load, finish,
-    rel_path, report, resolve_root, select_chapters,    probe_health_check, is_infra_error,
+    rel_path, report, resolve_root, select_chapters,    probe_health_check,
 )
 
 GATE_TITLE = "G5 流程健康门禁"

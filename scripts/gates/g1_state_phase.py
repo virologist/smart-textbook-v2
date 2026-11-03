@@ -51,7 +51,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import (  # noqa: E402
     EXIT_OK, EXIT_USAGE, EXIT_VIOLATION, Finding,
     add_common_args, apply_baseline, baseline_load, count_body_sections, finish,
-    load_yaml, phase_states, rel_path, report, resolve_root, select_chapters,    probe_health_check, is_infra_error,
+    load_yaml, phase_states, rel_path, report, resolve_root, select_chapters,    probe_health_check,
 )
 
 GATE_TITLE = "G1 状态机与相位门禁"
@@ -388,11 +388,10 @@ def probe_negatives(root: Path) -> int:
                 print(f"  ✗ 探针异常｜{name} → {exc}")
                 miss.append(name)
                 continue
-            if problems and all(is_infra_error(str(p)) for p in problems):
-                # 命中的是**基础设施类错误**而非本探针的预期违规 → 不算拦截
-                miss.append(name)
-                print(f"  ✗ 漏放｜{name} → 命中的全是基础设施错误: {problems[0][:80]}")
-                continue
+            # P3 · B-3：原「基础设施错误子串黑名单」判定已整体删除
+            #   （子串黑名单误判率 7/9，见 _common.py 修复记录）。
+            #   基础设施失效改由探针**开始前**的 probe_health_check() 统一拦截；
+            #   此处「有问题」即计为拦截成功，判据函数自身抛异常 → 计入漏放。
             if problems:
                 hit += 1
                 print(f"  ✓ 已拦截｜{name} → {problems[0][:80]}")

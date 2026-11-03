@@ -48,7 +48,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "gates"))
 from _common import (  # noqa: E402
     EXIT_OK, EXIT_VIOLATION, Finding, SEVERITY_ERROR,
     add_common_args, apply_baseline, baseline_load, discover_chapters,
-    discover_textbooks, finish, phase_states, rel_path, report, resolve_root,
+    discover_textbooks, finish, phase_states, probe_health_check, rel_path,
+    report, resolve_root,
 )
 
 GATE_TITLE = "统一日志 schema 校验"
@@ -214,6 +215,16 @@ def _valid_record() -> dict:
 
 def probe_negatives(root: Path) -> int:
     """构造违规样例 → 逐项断言被拦。探针全中 = exit 0。"""
+    # P3 · 独立复验 B-1：探针前置健康检查（公共设施失效时探针结果不可信）
+    #   SSOT 损坏 → phase_states() 返回 [] → 所有合法 phase 都被判「phase 非法」，
+    #   探针会因**错误原因**而全中（假绿）。此处必须前置拦截。
+    health = probe_health_check(root)
+    if health:
+        print("✗ 探针前置健康检查未通过（公共设施失效，探针结果不可信）:")
+        for p in health:
+            print(f"    {p}")
+        return EXIT_VIOLATION
+
     states = phase_states(root)
     cases: list[tuple[str, object, str]] = []
 

@@ -44,7 +44,7 @@ from _common import (  # noqa: E402
     EXIT_OK, EXIT_USAGE, EXIT_VIOLATION, Finding, SEVERITY_ERROR, SEVERITY_WARN,
     add_common_args, apply_baseline, baseline_load, discover_textbooks, finish,
     load_yaml, rel_path, report, resolve_root, select_chapters,
-    strip_code_blocks, strip_comments,    probe_health_check, is_infra_error,
+    strip_code_blocks, strip_comments,    probe_health_check,
 )
 
 GATE_TITLE = "G4 规则与文件门禁"
