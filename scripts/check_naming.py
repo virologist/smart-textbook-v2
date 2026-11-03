@@ -120,7 +120,7 @@ def save_baseline(entries: set[str]) -> None:
                         for h in sorted(entries)],
         }, ensure_ascii=False, indent=2),
         encoding="utf-8")
-    print(f"✅ baseline 已写入 {len(entries)} 条 → {BASELINE_PATH.relative_to(REPO_ROOT)}")
+    print(f"✅ baseline 已写入 {len(entries)} 条 → {BASELINE_PATH.relative_to(PKG_ROOT)}")
 
 
 def is_special(name: str) -> bool:

@@ -233,6 +233,24 @@ def test_naming_instance_py_is_exempt(tmp_path):
 
 # ── 包契约基础门禁 ─────────────────────────────────────────────────────
 
+def test_naming_write_baseline_does_not_crash(tmp_path):
+    """`--write-baseline` 路径不得崩溃。
+
+    原缺陷：`save_baseline()` 的打印语句引用 `REPO_ROOT` —— 该名字在包内脚本中
+    **不存在**（包内只有 `PKG_ROOT` / `WORKSPACE_ROOT`）→ 一旦走
+    `--write-baseline` 分支即 `NameError` 崩溃（exit 1），baseline 无法生成。
+    该路径平时不跑 → 门禁全绿也暴露不出来。
+    """
+    pkg = tmp_path / "pkg_bl"
+    shutil.copytree(PKG_ROOT, pkg, ignore=shutil.ignore_patterns(
+        ".git", "__pycache__", ".pytest_cache", "tests"))
+    r = _run("check_naming.py", "--write-baseline",
+             cwd=pkg, scripts_root=pkg / "scripts")
+    assert r.returncode == 0, (
+        f"--write-baseline 崩溃（exit {r.returncode}）：\n{r.stdout}\n{r.stderr}")
+    assert "baseline 已写入" in r.stdout, f"未报告写入结果：\n{r.stdout}"
+
+
 def test_manifest_contract_passes():
     """M1–M12 包契约自检必须通过（0 error / 0 warning）。"""
     r = _run("check_manifest.py")
