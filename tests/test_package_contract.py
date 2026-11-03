@@ -240,6 +240,9 @@ def test_naming_write_baseline_does_not_crash(tmp_path):
     **不存在**（包内只有 `PKG_ROOT` / `WORKSPACE_ROOT`）→ 一旦走
     `--write-baseline` 分支即 `NameError` 崩溃（exit 1），baseline 无法生成。
     该路径平时不跑 → 门禁全绿也暴露不出来。
+
+    ⚠ 必须跑**副本里的脚本**：`BASELINE_PATH` 由 `__file__` 推导（= `PKG_ROOT`），
+    跑源包脚本会**覆写源包的 baseline**。只改 `cwd` 不改脚本路径 → 会污染源站。
     """
     pkg = tmp_path / "pkg_bl"
     shutil.copytree(PKG_ROOT, pkg, ignore=shutil.ignore_patterns(
@@ -249,6 +252,13 @@ def test_naming_write_baseline_does_not_crash(tmp_path):
     assert r.returncode == 0, (
         f"--write-baseline 崩溃（exit {r.returncode}）：\n{r.stdout}\n{r.stderr}")
     assert "baseline 已写入" in r.stdout, f"未报告写入结果：\n{r.stdout}"
+    # 副本 baseline 已生成，且**源包 baseline 未被污染**
+    assert (pkg / "scripts" / "gates" / "_naming_baseline.json").is_file(), (
+        "副本 baseline 未生成")
+    src = json.loads(
+        (PKG_ROOT / "scripts" / "gates" / "_naming_baseline.json").read_text(encoding="utf-8"))
+    assert len(src["entries"]) == 66, (
+        f"源包 baseline 被污染（entries={len(src['entries'])}，应为 66）")
 
 
 def test_manifest_contract_passes():
