@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "updated": "2026-11-02",
+  "note": "B5 门禁可执行化 —— 存量违规白名单。存量 error 级违规在此登记后降级为 warning；新增违规（不在本表）一律 error → exit 1。路径形态：sha1:<8hex> = 精确路径（教材专用值不进通用层文件，P-2 红线）；glob = 通配路径（* 只匹配单个路径段）。",
+  "entries": [
+    {
+      "check": "G1-S7",
+      "pattern": "sha1:d8792630",
+      "reason": "draft_export_clean.md 不存在（C-CLEAN 未执行）"
+    },
+    {
+      "check": "G1-S4",
+      "pattern": "sha1:d3154478",
+      "reason": "章节状态为 BOOTSTRAP，不得进入 PRODUCE"
+    },
+    {
+      "check": "G1-S4",
+      "pattern": "sha1:80a958ff",
+      "reason": "章节状态为 BOOTSTRAP，不得进入 PRODUCE"
+    },
+    {
+      "check": "G2-Q3",
+      "pattern": "sha1:e088edf0",
+      "reason": "段落块 L64-119 字符数=2782 超过 2000 硬限制"
+    },
+    {
+      "check": "G2-Q3",
+      "pattern": "sha1:6457154a",
+      "reason": "段落块 L64-119 字符数=2475 超过 2000 硬限制"
+    },
+    {
+      "check": "G2-Q3",
+      "pattern": "sha1:c71e2d12",
+      "reason": "段落块 L67-123 字符数=2494 超过 2000 硬限制"
+    },
+    {
+      "check": "G2-Q3",
+      "pattern": "sha1:c197780a",
+      "reason": "段落块 L877-962 字符数=2131 超过 2000 硬限制"
+    },
+    {
+      "check": "G2-Q3",
+      "pattern": "sha1:8a803a51",
+      "reason": "段落块 L64-119 字符数=2782 超过 2000 硬限制"
+    },
+    {
+      "check": "G2-Q3",
+      "pattern": "sha1:021a7c64",
+      "reason": "段落块 L64-119 字符数=2475 超过 2000 硬限制"
+    },
+    {
+      "check": "G2-Q3",
+      "pattern": "sha1:b56b901d",
+      "reason": "段落块 L67-123 字符数=2494 超过 2000 硬限制"
+    },
+    {
+      "check": "G2-Q3",
+      "pattern": "sha1:77be579f",
+      "reason": "段落块 L877-962 字符数=2131 超过 2000 硬限制"
+    },
+    {
+      "check": "G4-R1",
+      "pattern": "sha1:3e104174",
+      "reason": "教材层规则含章节层文件引用"
+    },
+    {
+      "check": "G4-L1",
+      "pattern": "sha1:8247cd96",
+      "reason": "禁止在 <textbook>/ 下建 .claude/（§10）"
+    },
+    {
+      "check": "G4-C1",
+      "pattern": "sha1:40fee3ea",
+      "reason": "缺少必填字段: waterfowl"
+    },
+    {
+      "check": "G4-C1",
+      "pattern": "sha1:f85d5c0d",
+      "reason": "缺少必填字段: species_focus"
+    },
+    {
+      "check": "G4-C1",
+      "pattern": "sha1:d3154478",
+      "reason": "缺少必填字段: waterfowl"
+    },
+    {
+      "check": "G4-C1",
+      "pattern": "sha1:80a958ff",
+      "reason": "缺少必填字段: waterfowl"
+    },
+    {
+      "check": "LOG-SCHEMA",
+      "pattern": "sha1:f23b1114",
+      "reason": "L1: 缺字段: level, scope, event, task_id, artifact, tool, fallback_from, fallback_t"
+    },
+    {
+      "check": "LOG-SCHEMA",
+      "pattern": "sha1:c97f872e",
+      "reason": "L1: 缺字段: level, scope, event, task_id, artifact, tool, fallback_from, fallback_t"
+    }
+  ]
+}

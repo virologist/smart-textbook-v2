@@ -1,0 +1,477 @@
+# field_registry.yaml — 单一字段注册表（Rule Inheritance Engine 的字段 SSOT）
+# ══════════════════════════════════════════════════════════════════════════
+# 版本: v1.0 | 日期: 2026-11-02 | 批次: B2 规则继承引擎（架构设计 §3.1）
+# 语义基准: base_rules.yaml#inheritance_protocol.field_inheritance_types（v1.4 语义）
+# 上游依据: 架构设计文档 §3.1 + B0-Q2 裁决（B2 建于 tb-writer 仓内，B6 包化时迁
+#           references/rule-engine/）+ B1 契约归一后的统一口径
+# 消费者: scripts/resolve_rules.py（解析器/生成器）· scripts/validate_rules.py（校验器）
+#
+# 【本文件性质】
+#   1. 三层规则（base → textbook → chapter）中每一个「可继承字段」在此登记且仅登记一次；
+#      散落在 base_rules.yaml / 两教材 textbook_rules.yaml / 章节 chapter_rules.yaml
+#      的字段定义统一收编于本表（各文件保留自身数据，语义与校验口径以本表为准）。
+#   2. 本文件是【字段语义注册表】，不是【字段数据源】——字段的具体值仍存放在
+#      各层规则文件中；本表回答「这个字段叫什么 / 属于哪层 / 怎么继承 / 默认值
+#      从哪来 / 怎么校验」。
+#   3. 红线 P-2：本文件为通用层文件，禁止出现任何教材专用值（疾病名/物种名/
+#      教材名/机构名等），示例一律使用 {{placeholder}} 占位符。
+#
+# 【遗传变异三态】（方向 1 · 继承机制核心，详见 skills/rule-inheritance/SKILL.md）
+#   inherit  继承  父层值直接落盘，章节无需也无权改动
+#   override 变异  用户在教材层/章节层显式设定（章节层必须写入 _local_overrides）
+#   derive   衍生  联网检索衍生的新规则值，必附证据链接（derived_from + evidence），
+#                  写入 _derived 块，emit 差异报告中单列【待用户确认】
+# ══════════════════════════════════════════════════════════════════════════
+
+registry_version: "v1.0"
+ssot_role: "字段语义注册表（单一权威）"
+layers:
+  base: "references/rule-engine/base_rules.yaml（+ level_presets.yaml 默认值源）"
+  textbook: "tb_*/00-教材规则/textbook_rules.yaml"
+  chapter: "tb_*/章节/{ch##}/chapter_rules.yaml（含 _local_overrides / _derived 块）"
+
+# ── 继承类型语义（与 base_rules.yaml#field_inheritance_types v1.4 对齐）────
+inheritance_semantics:
+  override:
+    semantics: "Bootstrap 时从 level_presets 填充；教材层可实例化改写；章节层仅可通过 _local_overrides 覆盖"
+    overridable: true
+  inherit_only:
+    semantics: "仅从教材层继承，章节层禁止覆写（教材层可实例化）"
+    overridable: false        # 章节层不可覆写；教材层可设定
+  extend:
+    semantics: "可扩展——章节层在教材层基础上追加（list 去重合并 / map 深度合并），不替换"
+    overridable: true
+  fixed:
+    semantics: "通用不变——基础层锁定，任何层级（教材层/章节层）禁止覆写"
+    overridable: false        # 任何层都不可覆写
+
+# ── 变异三态标注口径（provenance 中的 mutation 字段取值）───────────────────
+mutation_states:
+  inherit:
+    meaning: "继承——值逐层透传，无人为改动"
+    provenance_marker: null                    # 继承态无需标注
+    user_review: "不需要"
+  override:
+    meaning: "变异——用户在教材层或章节层显式设定/改写"
+    provenance_marker: "mutated_by: user"      # 章节 _local_overrides 一律视为用户变异
+    user_review: "需要（emit 差异报告『变异』段）"
+  derive:
+    meaning: "衍生——联网检索发现学科/章节特有需求而衍生的新规则值"
+    provenance_marker: "derived_from: <检索记录id>"
+    requires: ["derived_from", "evidence"]     # 证据链接必填，缺失 = 校验错误
+    user_review: "需要（emit 差异报告『待用户确认』段，证据随行）"
+
+# ══════════════════════════════════════════════════════════════════════════
+# 字段主表
+# ══════════════════════════════════════════════════════════════════════════
+# 字段键 = 各层规则文件中的顶层键名（knowledge_scope 子字段单独登记为
+# knowledge_scope.* 形式）。每条登记项字段：
+#   layers         该字段合法出现的层（base/textbook/chapter）
+#   inherit_type   继承类型（override | inherit_only | extend | fixed 之一）
+#   type           值类型（integer|string|float|boolean|list|map|enum|object）
+#   default_source 默认值来源（level_presets 键路径 或 字面默认 或 null=无默认）
+#   required       解析章节链时该字段最终是否必须解析出值
+#   validation     校验规则（resolve_rules/validate_rules 执行）
+#   legacy_alias   旧字段名（B1 前历史写法，解析时自动映射）
+# ────────────────────────────────────────────────────────────────────────────
+fields:
+
+  # ── 元字段（不参与继承合并，各层自述）────────────────────────────────────
+  schema_version:
+    layers: [base, textbook, chapter]
+    inherit_type: fixed            # 结构契约锁定：仅随 schema 升级变更
+    type: string
+    default_source: null
+    required: true
+    validation: "非空字符串；各层文件必须声明"
+    legacy_alias: []
+  inherits_from:
+    layers: [textbook, chapter]
+    inherit_type: fixed            # 解析链结构字段——篡改即断链
+    type: string
+    default_source: null
+    required: true
+    validation: "相对路径，从本文件所在目录出发必须可达；禁止成环（validate_rules 环检测）"
+    legacy_alias: []
+    note: "resolve_rules 沿本字段逐层上溯（chapter → textbook → base）；base_rules.yaml 无此字段（根基因）"
+  inherited_from:
+    layers: [textbook, chapter]
+    inherit_type: fixed            # 文档性溯源（含版本号），不参与合并
+    type: string
+    default_source: null
+    required: false
+    validation: "格式 '<路径>#<版本>'；缺省时按 inherits_from 推定"
+    legacy_alias: []
+    note: "与 inherits_from 语义重叠的历史字段；合并以 inherits_from 为准，本字段仅作溯源参考"
+
+  # ── fixed 类：通用不变基因（base_rules#universal_genes）──────────────────
+  state_machine:
+    layers: [base]
+    inherit_type: fixed
+    type: list
+    default_source: "base_rules.yaml#universal_genes.genes.state_machine.value"
+    required: true
+    validation: "13 态完整枚举；枚举 SSOT = references/rule-engine/state_machine_v2.yaml（B0-Q1）"
+    legacy_alias: [available_states]
+    note: >-
+      任何层禁止定义状态机枚举本体。下游层只允许『ssot_ref 指针形态』——
+      即章节/教材文件中 state_machine 键的值恰为 {ssot_ref: references/rule-engine/state_machine_v2.yaml}，
+      视为合法引用（不构成覆写）；任何其他形态（含枚举复述）= 越权覆写，validate_rules exit 1。
+  sat_protocol:
+    layers: [base]
+    inherit_type: fixed
+    type: map
+    default_source: "base_rules.yaml#universal_genes.genes.sat_protocol.value"
+    required: true
+    validation: "子键 confidence_threshold/max_rounds/max_questions_per_round 为整数"
+    legacy_alias: []
+  agent_team:
+    layers: [base]
+    inherit_type: fixed
+    type: list
+    default_source: "base_rules.yaml#universal_genes.genes.agent_team.value"
+    required: true
+    validation: "角色名列表；成员实现缺口治理属 B5/B6 范畴，本表只锁『值不可被下层改写』"
+    legacy_alias: []
+  review_rounds:
+    layers: [base]
+    inherit_type: fixed
+    type: map
+    default_source: "base_rules.yaml#universal_genes.genes.review_rounds.value"
+    required: true
+    validation: "键∈深度四档 {vocational, associate, bachelor, graduate}；值为 ≥1 整数"
+    legacy_alias: []
+    note: "与 level_presets#index.by_review_rounds 保持一致（B1 后统一口径）"
+
+  # ── override 类：可变参数基因（base_rules#variable_genes）─────────────────
+  #   「有则改之，无则加勉」：父层有值则继承，需调整时下层显式覆盖
+  #   （章节层覆盖必须写入 _local_overrides，B1 H-01 口径）
+  depth_level:
+    layers: [textbook, chapter]
+    inherit_type: override
+    type: enum
+    default_source: "backward_compatibility：缺失时默认 associate"
+    required: true
+    validation: "取值∈深度四档 {vocational, associate, bachelor, graduate}（SSOT=level_presets.yaml；B1 M-06 统一口径）"
+    legacy_alias: [vocational_undergraduate, educational_level]
+  word_target:
+    layers: [textbook, chapter]
+    inherit_type: override
+    type: integer
+    default_source: "level_presets#{depth_level}.quality.word.target"
+    required: true
+    validation: "正整数（单位：中文字）；章节覆盖必须位于 _local_overrides"
+    legacy_alias: []
+  word_tolerance:
+    layers: [textbook, chapter]
+    inherit_type: override
+    type: string
+    default_source: "level_presets#{depth_level}.quality.word.tolerance → 折算为 '+-N%' 字符串"
+    required: true
+    validation: "字符串，匹配 ^[+-][0-9]+%$（B1 类型统一口径；数字型历史值由 legacy_alias 机制按百分比折算）"
+    legacy_alias: ["0.10 之类的 float（B1 前历史写法，折算 ×100 → '+-10%'）"]
+  min_figures:
+    layers: [textbook, chapter]
+    inherit_type: override
+    type: integer
+    default_source: "level_presets#{depth_level}.quality.figures.min_per_chapter"
+    required: false
+    validation: "非负整数"
+    legacy_alias: []
+  min_questions:
+    layers: [textbook, chapter]
+    inherit_type: override
+    type: integer
+    default_source: "level_presets#{depth_level}.quality.questions.min_per_chapter"
+    required: false
+    validation: "非负整数"
+    legacy_alias: []
+  min_rounds:
+    layers: [textbook, chapter]
+    inherit_type: override
+    type: integer
+    default_source: "level_presets#{depth_level}.workflow.review.min_rounds"
+    required: false
+    validation: "≥1 整数；与 base#review_rounds 同档值冲突时以用户显式值为准并记 provenance"
+    legacy_alias: []
+  review_required:
+    layers: [textbook, chapter]
+    inherit_type: override
+    type: boolean
+    default_source: "level_presets#{depth_level}.workflow.review（有 rounds 即视为 required）"
+    required: false
+    validation: "布尔值"
+    legacy_alias: []
+  sizheng_mode:
+    layers: [textbook, chapter]
+    inherit_type: override
+    type: string
+    default_source: "level_presets#{depth_level}.defaults.sizheng.mode"
+    required: false
+    validation: "字符串；教学思政模式（通用层不限定枚举，由教材层实例化）"
+    legacy_alias: []
+    note: "base_rules v1.4 语义=override；个别教材层把 field_types 声明得更严（inherit_only）——允许『就严』声明，校验按两者中更严者执行"
+  sizheng_max_ratio:
+    layers: [textbook, chapter]
+    inherit_type: override
+    type: float
+    default_source: "level_presets#{depth_level}.defaults.sizheng.max_ratio"
+    required: false
+    validation: "0 ≤ 值 ≤ 0.03（level_presets#meta.validation 上限）"
+    legacy_alias: []
+
+  # ── inherit_only 类：章节禁改 ────────────────────────────────────────────
+  structure:
+    layers: [textbook]
+    inherit_type: inherit_only
+    type: list
+    default_source: "level_presets#{depth_level}.defaults.structure"
+    required: true
+    validation: "非空字符串列表；章节层出现 structure 键（值≠教材层值）= 越权覆写，exit 1"
+    legacy_alias: []
+  allowed_files:
+    layers: [textbook, chapter]
+    inherit_type: inherit_only
+    type: list
+    default_source: null
+    required: false
+    validation: "字符串列表（glob 模式）；章节层值必须是教材层白名单的子集（更严收窄允许，扩集 = 越权，exit 1）"
+    legacy_alias: []
+    note: >-
+      历史章节存在超集追加（如 visual_plan.md / data_spec.yaml / assets/fig-*.mmd 等运行时
+      实践产物）。非 strict 模式下对 B2 前历史章节按『历史豁免』降级为告警；strict 模式
+      一律阻断。新增章节一律按教材层白名单生成。
+  DISALLOWED:
+    layers: [textbook, chapter]
+    inherit_type: inherit_only
+    type: list
+    default_source: null
+    required: false
+    validation: "字符串列表；与 allowed_files 同口径（章节收窄允许、扩充阻断）"
+    legacy_alias: []
+
+  # ── extend 类：可扩展（追加不替换）───────────────────────────────────────
+  knowledge_scope:
+    layers: [textbook, chapter]
+    inherit_type: extend
+    type: map
+    default_source: null
+    required: true
+    validation: "map：章节层与教材层深度合并（list 去重追加、map 递归合并），不得整体替换教材层定义"
+    legacy_alias: [knowledge_instance]   # B1 M-08/M-09 统一后的旧名
+    note: "子字段结构由各学科自定（B1 H-02 口径：不伪造同构）；通用接口槽位见 base_rules#knowledge_scope_schema"
+  special_requirements:
+    layers: [textbook, chapter]
+    inherit_type: extend
+    type: map
+    default_source: null
+    required: false
+    validation: "map 深度合并；本字段为 base_rules v1.4 预留扩展位，当前实例未使用"
+    legacy_alias: []
+  species_focus:
+    layers: [textbook, chapter]
+    inherit_type: extend
+    type: "map | list"
+    default_source: null
+    required: false
+    validation: "学科自定义形态（list 或 map）；章节层在教材层基础上扩展，不得删除教材层既有序目"
+    legacy_alias: []
+
+  # ── 章节层专有字段（不继承；章节身份/运行时状态）────────────────────────
+  chapter_id:
+    layers: [chapter]
+    inherit_type: override       # 层内可变，无跨层继承语义
+    type: string
+    default_source: null
+    required: true
+    validation: "形如 ch_## 或 ch_<slug>；章节目录内唯一"
+    legacy_alias: []
+  chapter_title:
+    layers: [chapter]
+    inherit_type: override
+    type: string
+    default_source: null
+    required: false
+    validation: "中文概述（文件命名规范见 references/file-naming.md）"
+    legacy_alias: []
+  chapter_number:
+    layers: [chapter]
+    inherit_type: override
+    type: integer
+    default_source: null
+    required: false
+    validation: "正整数"
+    legacy_alias: []
+  status:
+    layers: [chapter]
+    inherit_type: fixed          # 运行状态语义锁定为 13 态之一
+    type: enum
+    default_source: "BOOTSTRAP"
+    required: true
+    validation: "取值∈13 态（SSOT=references/rule-engine/state_machine_v2.yaml main_path.sequence）"
+    legacy_alias: [phase]        # B1 M-07：phase → status 统一
+  last_status_change:
+    layers: [chapter]
+    inherit_type: override
+    type: string
+    default_source: null
+    required: false
+    validation: "YYYY-MM-DD"
+    legacy_alias: []
+  status_source:
+    layers: [chapter]
+    inherit_type: fixed
+    type: string
+    default_source: "chapter_rules.yaml"
+    required: false
+    validation: "值恒为 chapter_rules.yaml（章节状态唯一权威源声明）"
+    legacy_alias: []
+
+  # ── 结构性容器 / 运行时记录字段（登记为『不校验类型』的占位，防误报）────
+  _local_overrides:
+    layers: [chapter]
+    inherit_type: override
+    type: map
+    default_source: null
+    required: false
+    validation: "容器字段：键必须在本表登记且 inherit_type ∈ {override, extend}；含 inherit_only/fixed 字段 = 越权，exit 1"
+    legacy_alias: []
+  _derived:
+    layers: [textbook, chapter]
+    inherit_type: extend
+    type: map
+    default_source: null
+    required: false
+    validation: "衍生规则容器：每项必含 derived_from（检索记录 id）与 evidence（证据链接）——缺任一项 = 校验错误"
+    legacy_alias: []
+    note: "derive 态唯一合法落点；emit 差异报告『待用户确认』段的数据源"
+  bootstrap:
+    layers: [chapter]
+    inherit_type: override
+    type: map
+    default_source: null
+    required: false
+    validation: "结构占位（completed/version/date/current_phase/phases）；类型不校验（B1 后口径）"
+    legacy_alias: []
+  gates:
+    layers: [chapter]
+    inherit_type: override
+    type: map
+    default_source: null
+    required: false
+    validation: "结构占位（章节门控阈值）；类型不校验——门禁实现属 B5 批次"
+    legacy_alias: []
+  lessonslearned:
+    layers: [chapter]
+    inherit_type: extend
+    type: list
+    default_source: null
+    required: false
+    validation: "结构占位（LEARN 经验沉淀）；id 在章节内唯一"
+    legacy_alias: []
+  word_achieved:
+    layers: [chapter]
+    inherit_type: override
+    type: integer
+    default_source: null
+    required: false
+    validation: "运行时记录值（非负整数）；不参与继承合并"
+    legacy_alias: []
+  status_note:
+    layers: [chapter]
+    inherit_type: override
+    type: string
+    default_source: null
+    required: false
+    validation: "运行时记录（多行文本）；不参与继承合并"
+    legacy_alias: []
+  handoff_v3_1_fields:
+    layers: [chapter]
+    inherit_type: override
+    type: map
+    default_source: null
+    required: false
+    validation: "结构占位（handoff v3.1 契约字段）；类型不校验"
+    legacy_alias: []
+  textbook_id:
+    layers: [textbook]
+    inherit_type: override
+    type: string
+    default_source: null
+    required: false
+    validation: "与教材根目录名一致（tb_<学科>-<版本> 形态）"
+    legacy_alias: []
+  display_name:
+    layers: [textbook]
+    inherit_type: override
+    type: string
+    default_source: "{{educational_level}}（占位符，见 level_presets#display_name）"
+    required: false
+    validation: "中文概述；通用层文件中出现具体教材名 = P-2 污染"
+    legacy_alias: []
+  subtitle:
+    layers: [textbook]
+    inherit_type: override
+    type: string
+    default_source: null
+    required: false
+    validation: "版本概述"
+    legacy_alias: []
+
+# ══════════════════════════════════════════════════════════════════════════
+# 通用校验规则（validate_rules.py 执行；--strict 追加标注项）
+# ══════════════════════════════════════════════════════════════════════════
+validation_rules:
+  circular_inheritance:
+    rule: "inherits_from 逐层上溯不得回到已访问节点（教材自继承/章节互指均违规）"
+    severity: error
+  depth_enum:
+    rule: "depth_level ∈ {vocational, associate, bachelor, graduate}（SSOT=level_presets.yaml）"
+    severity: error
+  tolerance_format:
+    rule: "word_tolerance 匹配 ^[+-][0-9]+%$（字符串）"
+    severity: error
+  unauthorized_override:
+    rule: "inherit_only/fixed 字段被章节层（含 _local_overrides）覆写 → exit 1；fixed 字段被教材层覆写 → exit 1"
+    severity: error
+    exemptions:
+      - "state_machine 的 ssot_ref 指针形态（值=SSOT 路径）视为合法引用，不构成覆写"
+      - "allowed_files/DISALLOWED 章节收窄（子集）合法；历史章节超集在非 strict 模式豁免"
+      - "教材层 field_types 就严声明（registry=override 而教材声明 inherit_only）：按更严者执行"
+  missing_required:
+    rule: "required=true 字段在解析结果中无值（含默认值兜底失败）→ exit 1"
+    severity: error
+  type_mismatch:
+    rule: "值类型与注册表 type 不符 → exit 1（word_target: '34000' 字符串 vs integer 亦在此列）"
+    severity: error
+  derive_evidence:
+    rule: "_derived 每项必含 derived_from + evidence；缺证据 = exit 1"
+    severity: error
+  strict_only:
+    - rule: "章节层 allowed_files 必须是教材层白名单子集（历史豁免关闭）"
+    - rule: "章节文件中与父层同值复述的键（未收编进 _local_overrides）报 warning（B1 backward_compatibility 等效条款的显式化）"
+    - rule: "_derived 项无 evidence → 升级为 error 并 exit 1（非 strict 为 warning）"
+
+# ══════════════════════════════════════════════════════════════════════════
+# 向后兼容（backward_compatibility 场景 → 引擎行为；承接 base_rules v1.4）
+# ══════════════════════════════════════════════════════════════════════════
+backward_compatibility:
+  - scenario: "旧章节无 inherited_from 字段"
+    behavior: "按 inherits_from 推定继承源；两者皆缺 → 假定继承教材层现行版本，正常运行"
+  - scenario: "旧章节无 field_types 声明"
+    behavior: "全部字段按本表默认 inherit_type 处理（继承语义以注册表为准，不再依赖逐文件声明）"
+  - scenario: "旧章节有重复声明值（非 _local_overrides）"
+    behavior: "与 _local_overrides 等效（值与父层不同即按章节覆盖计，provenance 记 mutated_by: user）"
+  - scenario: "depth_level 字段缺失"
+    behavior: "默认 associate（level_presets 兜底）"
+  - scenario: "章节层根键与 _local_overrides 并存同值（如 word_target 双写）"
+    behavior: "去重为单一覆盖源（_local_overrides 优先），幂等不叠加"
+
+# ══════════════════════════════════════════════════════════════════════════
+# 变更记录
+# ══════════════════════════════════════════════════════════════════════════
+# v1.0 | 2026-11-02 | B2 初建：收编 base_rules（universal_genes/variable_genes/
+#      field_inheritance_types/field_mapping_table）+ 两教材 textbook_rules +
+#      章节 chapter_rules 全部字段；登记 derive 三态与 _derived 契约；
+#      legacy_alias 收编 B1 前历史字段名（knowledge_instance/phase/
+#      vocational_undergraduate/available_states/float 型 word_tolerance）

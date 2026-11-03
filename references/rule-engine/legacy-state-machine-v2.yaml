@@ -1,0 +1,16 @@
+# state_machine_v2.yaml — 已废弃（指针文件）
+# ═══════════════════════════════════════════════════════════
+# 【B0-Q1 裁决 · B1 契约归一 2026-11-02】
+# 本文件（112 行旧版）已废弃，13 态状态机 SSOT 唯一权威为：
+#
+#     references/rule-engine/state_machine_v2.yaml   （v2.1，完整版）
+#
+# 迁移说明：
+#   - 旧版独有段 verify_4_round_loop / handoff_v3_1 /
+#     handoff_v2_v3_compatibility 已并入权威源对应章节
+#   - 引用本文件的组件（agents/*/SKILL.md、AGENTS.md、README.md、
+#     schemas/agent-common/io.md）已同步改为指向权威源
+#   - 机械校验：scripts/test_contract_sync.py 保证权威源 13 态枚举
+#     与各处引用一致
+#
+# 本文件保留为指针，禁止在此复述 13 态枚举。

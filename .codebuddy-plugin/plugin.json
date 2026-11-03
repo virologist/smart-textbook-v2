@@ -1,0 +1,166 @@
+{
+  "name": "smart-textbook-v2",
+  "version": "3.0.0",
+  "description": "Smart textbook authoring team v2: rule-inheritance engine (3-layer inherit/override/derive with provenance), gap-driven quantified knowledge closure, figure pipeline with registry and renumber reconciliation, and 32 executable gate criteria. Supports any discipline from vocational to graduate level.",
+  "author": {
+    "name": "TZUVet",
+    "email": "54756814+virologist@users.noreply.github.com",
+    "url": "https://github.com/virologist"
+  },
+  "agents": [
+    "./agents/smart-textbook-v2-team-lead.md",
+    "./agents/didactic-architect.md",
+    "./agents/literature-scout.md",
+    "./agents/subject-writer.md",
+    "./agents/quality-examiner.md",
+    "./agents/visual-instructional-designer.md"
+  ],
+  "skills": [
+    "./skills/rule-inheritance",
+    "./skills/gap-driven-loop",
+    "./skills/citation-verify",
+    "./skills/retrieval-gate",
+    "./skills/wiki-query",
+    "./skills/knowledge-deposit",
+    "./skills/vault-search"
+  ],
+  "expertType": "team",
+  "agentName": "smart-textbook-v2-team-lead",
+  "teamInfo": {
+    "leadAgent": "smart-textbook-v2-team-lead",
+    "memberAgents": [
+      "didactic-architect",
+      "literature-scout",
+      "subject-writer",
+      "quality-examiner",
+      "visual-instructional-designer"
+    ]
+  },
+  "displayName": {
+    "en": "Smart Textbook Team v2",
+    "zh": "智能教材编写天团"
+  },
+  "profession": {
+    "en": "Smart Textbook Team v2",
+    "zh": "智能教材编写天团"
+  },
+  "displayDescription": {
+    "en": "Rule-inheritance driven textbook authoring team: three-layer rule derivation, gap-driven knowledge closure, figure pipeline, and executable gates with zero-tolerance citation verification.",
+    "zh": "规则继承驱动的教材编写专家团，三层规则衍生、缺口闭环、图表流水线与可执行门禁，引用核验零容忍。"
+  },
+  "avatar": "avatars/smart-textbook-v2-team-lead.png",
+  "categoryId": "06-ContentCreative",
+  "defaultInitPrompt": {
+    "zh": "我是糜编澜，智能教材编写天团主理人。告诉我教材名称、目标读者与本章主题，我会先确认工作根目录与规则层继承关系，再启动「设计→检索→撰写→审查→交付」全流程编排。",
+    "en": "I'm Mi, lead orchestrator of the Smart Textbook Team v2. Tell me your textbook title, target readers, and chapter topic — I'll verify the work root and rule inheritance chain, then launch the design-retrieve-write-review-deliver pipeline."
+  },
+  "plugin": "smart-textbook-v2",
+  "tags": [
+    {
+      "en": "Textbook Authoring",
+      "zh": "教材编写"
+    },
+    {
+      "en": "Rule Inheritance",
+      "zh": "规则继承"
+    },
+    {
+      "en": "Gap-Driven Closure",
+      "zh": "缺口闭环"
+    }
+  ],
+  "quickPrompts": [
+    {
+      "zh": "我是糜编澜，智能教材编写天团主理人。告诉我教材名称、目标读者与本章主题，我会先确认工作根目录与规则层继承关系，再启动「设计→检索→撰写→审查→交付」全流程编排。",
+      "en": "I'm Mi, lead orchestrator of the Smart Textbook Team v2. Tell me your textbook title, target readers, and chapter topic — I'll verify the work root and rule inheritance chain, then launch the design-retrieve-write-review-deliver pipeline."
+    },
+    {
+      "zh": "我已有教材层规则文件，请按继承链解析出本章的最终规则并生成差异报告，标出哪些需要我确认。",
+      "en": "I have textbook-layer rule files — resolve the final chapter rules along the inheritance chain and produce a diff report showing what needs my confirmation."
+    },
+    {
+      "zh": "我这一章有若干数据缺口，请走缺口闭环：登记台账、审批筛选、检索收纳索引、回填证据锚，最后逐条核验。",
+      "en": "My chapter has several data gaps — run the gap closure loop: ledger, approval triage, retrieval with index, evidence-anchored fill-in, then per-item verification."
+    }
+  ],
+  "members": [
+    {
+      "id": "smart-textbook-v2-team-lead",
+      "displayName": {
+        "en": "Mi Bianlan",
+        "zh": "糜编澜"
+      },
+      "profession": {
+        "en": "Chief Textbook Orchestrator",
+        "zh": "教材总编辑"
+      },
+      "avatar": "avatars/smart-textbook-v2-team-lead.png",
+      "role": "lead"
+    },
+    {
+      "id": "didactic-architect",
+      "displayName": {
+        "en": "Tao Jingyan",
+        "zh": "陶靖衍"
+      },
+      "profession": {
+        "en": "Instructional Design Architect",
+        "zh": "教学设计架构师"
+      },
+      "avatar": "avatars/didactic-architect.png",
+      "role": "member"
+    },
+    {
+      "id": "literature-scout",
+      "displayName": {
+        "en": "Su Haiqiong",
+        "zh": "粟海琼"
+      },
+      "profession": {
+        "en": "Literature Retrieval Specialist",
+        "zh": "文献检索专员"
+      },
+      "avatar": "avatars/literature-scout.png",
+      "role": "member"
+    },
+    {
+      "id": "subject-writer",
+      "displayName": {
+        "en": "Zhu Shubai",
+        "zh": "祝书白"
+      },
+      "profession": {
+        "en": "Subject Content Writer",
+        "zh": "学科内容撰写师"
+      },
+      "avatar": "avatars/subject-writer.png",
+      "role": "member"
+    },
+    {
+      "id": "quality-examiner",
+      "displayName": {
+        "en": "Yan Zhengci",
+        "zh": "严正词"
+      },
+      "profession": {
+        "en": "Quality Control Examiner",
+        "zh": "质量控制审查官"
+      },
+      "avatar": "avatars/quality-examiner.png",
+      "role": "member"
+    },
+    {
+      "id": "visual-instructional-designer",
+      "displayName": {
+        "en": "Hui Zhangtu",
+        "zh": "绘章图"
+      },
+      "profession": {
+        "en": "Visual Instructional Designer",
+        "zh": "可视化教学设计师"
+      },
+      "avatar": "avatars/visual-instructional-designer.png",
+      "role": "member"
+    }
+  ]
+}

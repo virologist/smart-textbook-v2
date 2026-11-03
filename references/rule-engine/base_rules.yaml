@@ -1,0 +1,826 @@
+# base_rules.yaml — 基础层基因文件（所有教材的「源基因」）
+# 权威源：references/rule-engine/base_rules.yaml | 版本: v1.8 | 日期: 2026-08-08
+# 变更: v1.8新增PART4-P-Layer感知层+C-Layer坍缩层+4R知识打磨+SoT-BoT+对抗三角自检(系统级)；v1.7新增proofread_protocol+consolidate_protocol；v1.6新增遗传变异机制顶层设计同步；v1.5新增auto_propagation_policy
+# 继承语义：
+#   inherit: 直接复制，不允许覆盖
+#   override: Bootstrap时实例化填充，允许章节覆盖
+#   extend: Bootstrap时可扩展，章节可追加
+
+schema_version: "v1.0"
+extends_ref: null   # base_rules.yaml 是根基因，无上游
+
+# ═══════════════════════════════════════════════════════════
+# PART 0: 目录约定（教材层四目录标准命名）
+# ═══════════════════════════════════════════════════════════
+directory_conventions:
+  inherit: "override"          # Bootstrap时可按tb_实例适配，改动作用域仅限WORK_ROOT
+  scoped_to: "WORK_ROOT"       # 各tb_目录独立实例化，互不影响
+  description: "教材层四目录标准命名。Bootstrap工具可在tb_实例内修改，但系统层源文件不受影响。"
+  dirs:
+    base_rules:       "00-系统规则"    # 继承自系统层00-系统规则/base_rules.yaml的规则副本
+    intake:           "01-任务摄入"    # 原始素材、样张、用户输入
+    textbook_rules:   "00-教材规则"    # 教材实例规则（textbook_rules.yaml所在层）
+    runtime_state:    "03-运行状态"    # 运行日志、bootstrap进度、编排状态
+
+# ═══════════════════════════════════════════════════════════
+# PART 1: 通用不变基因（所有层级共享，不可覆写）
+# ═══════════════════════════════════════════════════════════
+universal_genes:
+  description: "所有教材层级共享，不可覆写"
+  genes:
+    state_machine:
+      inherit: "fixed"
+      value:
+        - BOOTSTRAP
+        - INTAKE
+        - CLARIFY
+        - SPECIFY
+        - RETRIEVE
+        - PRODUCE
+        - VERIFY
+        - PROOFREAD
+        - CONSOLIDATION
+        - VISUALIZE
+        - ASSEMBLE
+        - DELIVER
+        - LEARN
+    sat_protocol:
+      inherit: "fixed"
+      value:
+        confidence_threshold: 90
+        max_rounds: 5
+        max_questions_per_round: 5
+    agent_team:
+      inherit: "fixed"
+      value:
+        - tb-chief-editor
+        - tb-writer
+        - tb-educator
+        - tb-reviewer
+        - tb-researcher
+        - tb-didactic-planner
+        - tb-visual-designer
+    review_rounds:
+      inherit: "fixed"
+      value:
+        vocational: 3
+        associate: 4
+        bachelor: 5
+        graduate: 5
+
+# ═══════════════════════════════════════════════════════════
+# PART 2: 可变参数基因（Bootstrap时实例化，允许章节覆盖）
+# ═══════════════════════════════════════════════════════════
+variable_genes:
+  description: "Bootstrap时从level_presets填充，允许章节通过_local_overrides覆盖"
+  genes:
+    word_target:
+      inherit: "override"
+      default_source: "level_presets.yaml"
+      field_path: "quality.word.target"
+      type: integer
+      unit: "中文字"
+    word_tolerance:
+      inherit: "override"
+      default_source: "level_presets.yaml"
+      field_path: "quality.word.tolerance"
+      type: string
+    min_figures:
+      inherit: "override"
+      default_source: "level_presets.yaml"
+      field_path: "quality.figures.min_per_chapter"
+      type: integer
+    min_questions:
+      inherit: "override"
+      default_source: "level_presets.yaml"
+      field_path: "quality.questions.min_per_chapter"
+      type: integer
+    review_required:
+      inherit: "override"
+      default_source: "level_presets.yaml"
+      field_path: "workflow.review.required"
+      type: boolean
+    sizheng_mode:
+      inherit: "override"
+      default_source: "level_presets.yaml"
+      field_path: "sizheng.mode"
+      type: string
+    sizheng_max_ratio:
+      inherit: "override"
+      default_source: "level_presets.yaml"
+      field_path: "sizheng.max_ratio"
+      type: float
+    structure:
+      inherit: "override"
+      default_source: "level_presets.yaml"
+      field_path: "structure"
+      type: list
+
+# ═══════════════════════════════════════════════════════════
+# PART 3: 层级差异基因（四档预设，运行时按depth_level选取）
+# ═══════════════════════════════════════════════════════════
+# ⚠️ 详细参数见 references/rule-engine/level_presets.yaml
+# 此处仅定义引用关系，不内嵌完整参数（避免重复维护）
+level_differential_genes:
+  description: "四档预设参数，详见level_presets.yaml（整合源）"
+  ref: "level_presets.yaml"
+  levels:
+    vocational:
+      ref: "level_presets.yaml#vocational"
+    associate:
+      ref: "level_presets.yaml#associate"
+    bachelor:
+      ref: "level_presets.yaml#bachelor"
+    graduate:
+      ref: "level_presets.yaml#graduate"
+
+# ═══════════════════════════════════════════════════════════
+# PART 4: 能力包注册（Bootstrap时激活，可细粒度覆写）
+# ═══════════════════════════════════════════════════════════
+# ⚠️ 详细配置见 references/rule-engine/skill_registry.yaml
+capability_packages:
+  description: "教材层级对应的能力包配置，详见skill_registry.yaml"
+  ref: "skill_registry.yaml"
+
+# ═══════════════════════════════════════════════════════════
+# PART 5: Review路由参数（可被教材层覆写）
+# ═══════════════════════════════════════════════════════════
+review_routing:
+  description: "tb-reviewer三策略路由阈值，可被textbook_rules.yaml覆写"
+  thresholds:
+    full_review_max: 10000       # ≤10K字：全量审查
+    summary_first_max: 25000    # 10K-25K字：摘要优先
+  chunk_size:
+    target: 6000               # 目标块大小（中文字）
+    max: 8000                  # 上限
+    boundary_preference:        # 切分优先级
+      - "## 二级标题"
+      - "### 三级标题"
+      - "段落边界"
+  combination_trigger:
+    pending_evidence_min: 5    # pending>5触发组合策略
+    content_score_max: 70      # content<70触发组合策略
+  routing_trigger: "chief-editor委派时决策，携带策略选择理由"
+
+# ═══════════════════════════════════════════════════════════
+# PART 7: 知识接口标准（knowledge_scope — 工具×教材的标准接口）
+# ═══════════════════════════════════════════════════════════
+# 【v2.0新增】解决工具层×教材层耦合问题
+#
+# 设计原则：
+#   工具 = 执行器（无域知识，只读规则）
+#   教材层 = 知识库（填充具体知识，供工具读取）
+#   两者通过 knowledge_scope 正交组合
+#
+# 参数解析优先级（运行时）：
+#   chapter_rules.yaml > textbook_rules.yaml > base_rules.yaml
+#
+# 扩展新领域时：
+#   只需在 textbook_rules.yaml 填充 knowledge_scope（B1：字段名统一，原 knowledge_instance 废弃），
+#   工具层无需任何修改。
+# ═══════════════════════════════════════════════════════════
+
+knowledge_scope_schema:
+  description: "知识接口标准 — 所有教材必须实现的知识域参数"
+  version: "v1.0"
+  source: "base_rules.yaml"
+  usage: |
+    工具（如tb-researcher/tb-writer/expert-pool）在执行时通过 rules_resolver 读取：
+      resolver.resolve("knowledge_scope.diseases")
+      resolver.resolve("knowledge_scope.expert_keywords.病原学")
+    工具本身不硬编码任何具体疾病名/URL/关键词。
+
+  # ── 子字段定义 ─────────────────────────────────────
+  fields:
+
+    # 【必填】疾病/主题名称列表
+    # 工具通过此字段知道"本教材涉及哪些疾病"
+    # 例如 {{example_diseases}}
+    # 例如 {{example_topics}}
+    diseases:
+      type: list[string]
+      required: true
+      description: "本教材涉及的疾病名称列表（由knowledge_scope.diseases填充）"
+      tool_usage: "tb-researcher检索、expert-pool角色激活、污染检测"
+
+    # 【可选】非疾病类主题列表（由knowledge_scope.topics填充）
+    # diseases和topics互斥，工具根据哪个非空来判断教材类型
+    topics:
+      type: list[string]
+      required: false
+      description: "本教材涉及的主题/概念列表（非疾病类教材，由knowledge_scope.topics填充）"
+      tool_usage: "专家角色激活、检索关键词生成"
+
+    # 【必填】病原/病理/药理等专有名称
+    # 例如 {{example_pathogens}}
+    pathogens:
+      type: list[string]
+      required: true
+      description: "本教材涉及的病原体/生物制剂名称"
+      tool_usage: "tb-researcher检索、专家角色keywords匹配"
+
+    # 【必填】专家角色匹配关键词
+    # 用于 CONTENT_AWARE 角色动态激活
+    # 结构: category → keywords[]
+    # category = 病原学/临床诊断/实验室诊断/流行病学/生物安全/药政合规/公共卫生 等
+    expert_keywords:
+      type: map           # 本字段为 map（key=category类别名，value=关键词列表）
+      category_type: list[string]   # map 的 value 类型：字符串列表
+      required: true
+      description: "用于激活 CONTENT_AWARE 角色的关键词映射（通用概念，非具体疾病名）"
+      example:
+        病原学: [病毒, 变异, 抗原漂移, HA, NA, ICTV, 基因型, 亚型]
+        临床诊断: [呼吸道, 产蛋下降, 神经症状, 粪便异常, 死亡]
+        实验室诊断: [PCR, RT-PCR, HI, ELISA, 病毒分离, 荧光定量]
+        流行病学: [传播, 宿主, 媒介, R0, 疫点, 疫区]
+        生物安全: [消毒, 隔离, 全进全出, 免疫程序]
+        药政合规: [兽药典, 休药期, 残留限量, 注册疫苗]
+        公共卫生: [人兽共患, 跨种传播, 食品安全, OneHealth]
+      tool_usage: "expert-pool.yaml CONTENT_AWARE 角色激活"
+
+    # 【必填】权威参考网站
+    # 工具通过此列表生成检索策略
+    reference_sources:
+      type: list[map{name, url, description}]
+      required: true
+      description: "本领域权威参考网站列表（用于tb-researcher生成检索策略）"
+      example:
+        - name: "FAO EMPRES-i"
+          url: "https://empres-i.apps.fao.org/"
+          description: "FAO全球疫病监测数据库"
+      tool_usage: "tb-researcher.md 生成检索URL列表"
+
+    # 【必填】领域特异性检索词
+    # 结构: source → keyword_string
+    # source = moa/cnki/pubmed/google/wos 等
+    retrieval_keywords:
+      type: map           # 本字段为 map（key=source来源，value=检索关键词字符串）
+      source_type: string         # map 的 key 类型
+      required: true
+      description: "本领域特异性检索关键词（用于联网检索）"
+      example:  # 示例值由 domain profile 注入; 此处为结构演示（不含任何学科专用值）
+        moa: "site:moa.gov.cn {{retrieval_keywords.moa}} 2024"
+        pubmed: "{{retrieval_keywords.pubmed}}"
+        cnki: "{{retrieval_keywords.cnki}}"
+      tool_usage: "tb-researcher.md 生成mcp__tavily-search调用"
+
+    # 【可选】教学示例数据
+    # 用于 tb-educator 生成图表示例（通用格式模板，本域填入具体值）
+    teaching_examples:
+      type: map
+      required: false
+      description: "用于生成教学示例的样本数据"
+      subfields:
+        disease_comparison_template:
+          type: string
+          description: "疾病比较表通用模板（工具渲染时填入具体疾病数据）"
+          tool_usage: "tb-educator.md GFM表格生成"
+        case_study_template:
+          type: string
+          description: "案例分析STAR格式模板"
+          tool_usage: "tb-writer.md 案例生成"
+        domain_query_example:
+          type: string
+          description: "检索示例问句模板"
+          tool_usage: "tb-reviewer.md 检索任务描述"
+
+    # 【必填】污染检测模式（用于rule-sync-check hook）
+    # 检测到以下内容出现在基础层工具文件中 = 教材层污染信号
+    pollution_pattern:
+      type: list[string]
+      required: true
+      description: "污染检测关键词列表（用于识别教材内容污染基础层）"
+      example: ['{{diseases[0]}}', '{{diseases[1]}}', '{{diseases[2]}}']
+      tool_usage: "rule-sync-check.sh DISEASE_PATTERN 变量"
+
+    # 【可选】章节能力声明（用于工具层条件分支）
+    # 本字段驱动 tb-golden-textbook 等 Skill 的加载决策
+    # C1 Bootstrap 时根据章节类型自动推断（鉴别诊断章节→full，概论章节→none，普通章节→partial）
+    capabilities:
+      type: map
+      required: false
+      description: "章节能力声明——控制 Skill 加载行为和内容渲染范围"
+      subfields:
+        differential_diagnosis:
+          type: enum[full|partial|none]
+          default: none
+          description: "鉴别诊断内容加载级别"
+          inference_rule: |
+            C1 Bootstrap 自动推断规则：
+            - 章节标题含"鉴别"→ "full"
+            - 章节标题含"诊断"/"防控"/"案例"→ "partial"
+            - 其他 → "none"
+          tool_usage: "tb-golden-textbook SKILL.md 加载 differential-structure.md + domain/{学科}/differential-data.md"
+        case_study:
+          type: enum[full|partial|none]
+          default: partial
+          description: "案例学习内容加载级别"
+          tool_usage: "tb-writer.md STAR案例生成"
+        retrieval:
+          type: enum[wiki_first|web_first|none]
+          default: wiki_first
+          description: "检索策略偏好"
+          tool_usage: "tb-researcher.md 检索顺序"
+        pathology:
+          type: enum[full|partial|none]
+          default: partial
+          description: "病变描述内容加载级别"
+          tool_usage: "tb-golden-textbook references/__framework__/pathology-checklist.md"
+
+    # 【可选】命名规范示例（用于naming-check hook）
+    naming_examples:
+      type: list[string]
+      required: false
+      description: "本领域文件命名示例（hook输出给用户看的提示）"
+      example:  # 命名示例由 domain profile 注入; 此处为结构演示（不含任何学科专用值）
+        - "第3章-{{disease_name}}的诊断与治疗要点总结.md"
+        - "03-{{disease_name}}诊断要点.md"
+      tool_usage: "naming-check.sh 错误提示示例"
+
+# ═══════════════════════════════════════════════════════════
+# PART 8: 工具元数据注册表（运行时参数绑定说明）
+# ═══════════════════════════════════════════════════════════
+tool_binding:
+  description: "工具 × 知识接口的运行时绑定关系"
+  version: "v1.0"
+  source: "base_rules.yaml"
+
+  bindings:
+    - tool: "expert-pool.yaml"
+      model: "read_resolved"
+      reads:
+        - path: "knowledge_scope.expert_keywords"
+          layer: "chapter_rules"
+          required: true
+      note: "CONTENT_AWARE角色按keywords匹配，工具不硬编码任何具体关键词"
+
+    - tool: "tb-researcher.md"
+      model: "read_resolved"
+      reads:
+        - path: "knowledge_scope.reference_sources"
+          layer: "textbook_rules"
+          required: true
+        - path: "knowledge_scope.retrieval_keywords"
+          layer: "textbook_rules"
+          required: true
+        - path: "knowledge_scope.pathogens"
+          layer: "chapter_rules"
+          required: true
+      note: "检索时从规则文件读取URL和关键词，不硬编码FAO/MOA等具体网站"
+
+    - tool: "tb-educator.md"
+      model: "read_resolved"
+      reads:
+        - path: "knowledge_scope.diseases"
+          layer: "chapter_rules"
+          required: true
+        - path: "knowledge_scope.teaching_examples"
+          layer: "chapter_rules"
+          required: false
+      note: "图表示例从teaching_examples读取，不硬编码任何具体疾病名（domain profile 提供）"
+
+    - tool: "tb-writer.md"
+      model: "read_resolved"
+      reads:
+        - path: "knowledge_scope.diseases"
+          layer: "chapter_rules"
+          required: true
+        - path: "knowledge_scope.teaching_examples.domain_query_example"
+          layer: "chapter_rules"
+          required: false
+      note: "写作示例从规则文件读取，不硬编码具体疾病名"
+
+    - tool: "tb-reviewer.md"
+      model: "read_resolved"
+      reads:
+        - path: "knowledge_scope.diseases"
+          layer: "chapter_rules"
+          required: true
+        - path: "quality.writing.ai_voice_banned"
+          layer: "base_rules"
+          required: true
+      note: "检索任务示例从规则读取，不硬编码具体疾病名称"
+
+    - tool: "rule-sync-check.sh"
+      model: "env_var"
+      reads:
+        - path: "knowledge_scope.pollution_pattern"
+          layer: "textbook_rules"
+          env_var: "DISEASE_PATTERN"
+      note: "Hook从环境变量读取污染检测模式，不在脚本中硬编码疾病名"
+
+    - tool: "naming-check.sh"
+      model: "comment_hint"
+      reads:
+        - path: "knowledge_scope.naming_examples"
+          layer: "textbook_rules"
+      note: "Hook注释中标注'详见 textbook_rules.yaml#knowledge_scope.naming_examples'"
+inheritance_protocol:
+  bootstrap_flow: "base_rules.yaml → textbook_rules.yaml → chapter_rules.yaml"
+  merge_priority:
+    - "chapter_rules.yaml._local_overrides > textbook_rules.yaml > base_rules.yaml"
+    - "chapter_rules.yaml._local_overrides 覆盖 variable_genes 和 level_differential_genes"
+    - "universal_genes 不允许任何层级覆盖"
+  path_resolution:
+    refs_relative_to: "references/rule-engine/"
+    bootstrap_resolves_to: "00-教材规则/textbook_rules.yaml"
+    chapter_resolves_to: "章节/ch_XX/chapter_rules.yaml"
+  overrides_mechanism:
+    description: "章节覆盖variable_genes时，写入chapter_rules.yaml._local_overrides"
+    example: |
+      _local_overrides:
+        word_target: 18700    # 覆盖蓝图字数
+        min_figures: 13      # 覆盖图表数量
+
+  # ═══════════════════════════════════════════════════════════════
+  # 字段继承类型语义表（v1.4 新增，整合 archive/standalone/12-遗传协议.md）
+  # ═══════════════════════════════════════════════════════════════
+  field_inheritance_types:
+    description: "chapter_rules.yaml 声明每个字段的继承类型，决定其是否可被覆盖"
+    # 有则改之，无则加勉：override字段在父层有值则继承，父层无值或章节需调整时覆盖
+    # extend字段在父层有值时合并去重追加，父层无值时以章节级值初始化
+    # inherit_only字段：无论父层是否有值，章节级必须严格继承，不得新增或修改
+    types:
+      - type: "override"
+        semantics: "Bootstrap时从level_presets填充，允许章节通过_local_overrides覆盖"
+        example_fields: ["word_target", "word_tolerance", "min_figures", "min_questions", "review_required", "sizheng_mode", "sizheng_max_ratio"]
+        overridable: true
+      - type: "inherit_only"
+        semantics: "仅从教材层继承，章节禁止覆写"
+        example_fields: ["structure", "allowed_files"]
+        overridable: false
+      - type: "extend"
+        semantics: "可扩展，章节可在教材层基础上追加内容"
+        example_fields: ["knowledge_scope", "special_requirements"]
+        overridable: true
+        note: "章节追加时使用章节级knowledge_scope与教材层合并，而非替换"
+      - type: "fixed"
+        semantics: "通用不变，基础层锁定，所有层级禁止覆写"
+        example_fields: ["state_machine", "sat_protocol", "agent_team"]
+        overridable: false
+
+  # 字段映射表（base_rules → textbook_rules → level_presets.yaml → chapter_rules 链路）
+  # ⚠️ 2026-04-25 更新：depth_level 在 textbook_rules.yaml 根层（不在 variable_genes）
+  #    word_target/min_figures/min_questions 实际值来自 level_presets.yaml（不在 textbook defaults）
+  field_mapping_table:
+    description: "variable_genes 字段从根基因到章节的完整映射路径"
+    mappings:
+      - base_field: "variable_genes.word_target"
+        textbook_field: "❌ 已在 level_presets.yaml associate.quality.word.target"
+        chapter_override: "_local_overrides.word_target"
+        inherit_type: "override"
+      - base_field: "variable_genes.depth_level"
+        textbook_field: "textbook_rules.yaml#depth_level（根层）"
+        chapter_override: "_local_overrides.depth_level"
+        inherit_type: "override"
+      - base_field: "variable_genes.min_figures"
+        textbook_field: "❌ 已在 level_presets.yaml associate.quality.figures.min_per_chapter"
+        chapter_override: "_local_overrides.min_figures"
+        inherit_type: "override"
+      - base_field: "variable_genes.min_questions"
+        textbook_field: "❌ 已在 level_presets.yaml associate.quality.questions.min_per_chapter"
+        chapter_override: "_local_overrides.min_questions"
+        inherit_type: "override"
+      - base_field: "variable_genes.structure"
+        textbook_field: "defaults.writing.structure"
+        chapter_override: "❌ 不可覆写"
+        inherit_type: "inherit_only"
+      - base_field: "level_differential_genes"
+        textbook_field: "workflow.review.min_rounds"
+        chapter_override: "_local_overrides.min_rounds"
+        inherit_type: "override"
+
+  # 向后兼容约定（处理旧章节的缺失字段）
+  backward_compatibility:
+    description: "旧章节（v5.0前）的字段缺失时的默认行为"
+    scenarios:
+      - scenario: "旧章节无inherited_from字段"
+        fallback: "假定继承textbook_rules.yaml#v5.0，正常运行"
+      - scenario: "旧章节无field_types声明"
+        fallback: "假定全部字段为inherit_only（不覆写）"
+      - scenario: "旧章节有重复声明值（非_local_overrides）"
+        fallback: "值与_local_overrides等效，行为不变"
+      - scenario: "depth_level字段缺失"
+        fallback: "默认为associate（职业本科）"
+
+  # tb-chapter-bootstrap 声明式继承机制
+  chapter_bootstrap_inheritance:
+    description: "tb-chapter-bootstrap生成chapter_rules.yaml时的声明式继承模式"
+    schema_example: |
+      schema_version: "v5.0"
+      inherited_from: "00-教材规则/textbook_rules.yaml#v5.0"
+
+      field_types:
+        word_target: override         # ← 可覆写
+        structure: inherit_only       # ← 不可覆写
+        knowledge_scope: extend       # ← 可追加
+
+      _local_overrides:
+        word_target: 18700           # ← ch_XX具体值
+        min_figures: 13              # ← ch_XX图表数
+    runtime_resolution: "Agent启动时读取inherited_from → 追踪到textbook_rules.yaml → 获取defaults → 应用_local_overrides覆盖"
+
+  # 能力包激活链路（v1.4 新增）
+  capability_activation_chain:
+    description: "从level_presets到Agent行为参数的完整链路"
+    flow: |
+      skill_registry.yaml[depth_level]
+          ↓ activated skills 列表
+      textbook_rules.yaml.resources.skills
+          ↓ chief-editor委派时查询
+      chapter_rules.yaml.knowledge_scope
+          ↓ 运行时读取
+      Agent启动时应用对应行为参数
+    note: "详见 skill_registry.yaml 和 base_rules.yaml#capability_packages"
+
+  # 自动遗传同步策略（v1.5 新增）
+  auto_propagation_policy:
+    description: "规则文件变更的自动遗传同步策略"
+    layers:
+      base_to_textbook:
+        trigger: "base_rules.yaml 或 level_presets.yaml 或 skill_registry.yaml 变更"
+        action: "在教材层 01-项目日志.md 记录变更事件，等待人工确认同步到 textbook_rules.yaml"
+        auto: false  # 基础层变更需要人工确认
+        notification: "在 01-项目日志.md 追加变更事件，包含：变更文件、变更时间、建议同步字段"
+      textbook_to_chapter:
+        trigger: "textbook_rules.yaml 变更"
+        action: "自动同步到所有受影响章节的 _local_overrides（字段级合并，非覆盖）"
+        auto: true   # 教材层→章节层可自动同步
+        notification: "在章节 02-章内日志.md 记录变更事件"
+    implementation:
+      trigger_script: ".claude/hooks/write-guard.sh _detect_rule_propagation()"
+      sync_script: ".claude/scripts/rule_sync_checker.py"
+      log_file: "03-运行状态/rule_propagation_log.md"
+
+# ═════════════════════════════════════════════════════════════════════
+# 版本历史（按时间倒序，v1.6起新增）
+# ═════════════════════════════════════════════════════════════════════
+# V1.6 | 2026-04-26 | 遗传变异机制顶层设计同步
+#       | field_inheritance_types 补充"有则改之无则加勉"语义注释
+#       | 新增版本历史块（版本历史从此处开始记录）
+#       | 变更依据：SAT协议确认的遗传变异机制顶层设计文档 v1.0
+# V1.5 | 2026-04-25 | 新增 auto_propagation_policy（规则文件变更自动遗传同步策略）
+# V1.4 | 2026-04-21 | 融入 archive/standalone/12-遗传协议.md
+#       | 包含 field_inheritance_types / field_mapping_table / backward_compatibility
+#       | / capability_activation_chain
+# V1.3 | 2026-04-20 | 修复 H6 污染：pubmed示例→{{retrieval_keywords.pubmed}}
+#       | example→{{diseases[0-2]}} 占位符
+# V1.0 | 2026-04-11 | 初建
+# ═════════════════════════════════════════════════════════════════════
+
+# ═════════════════════════════════════════════════════════════════════
+# proofread_protocol / consolidate_protocol（校稿与统稿协议）
+# v1.0 | 2026-04-28 | 新增
+# 说明：泛化路径——适用于所有 tb_* 教材编写系统
+# ═════════════════════════════════════════════════════════════════════
+
+# === proofread_protocol（校稿协议）===
+proofread_protocol:
+  description: 多 Agent 协作校稿标准协议（句子级细颗粒度审阅）
+  applicability: textbook project with external collaborators
+  stage: PROOFREAD
+  parallelizable: true  # 多章节可并行校稿
+
+  tag_taxonomy:
+    format: "[[TAG:YYYYMMDD-NNNN]]"  # UUID 全局唯一
+    FIXED:
+      meaning: 已修正（事实/语法/格式错误）
+      requires_human_confirm: false
+    GAP:
+      meaning: 内容缺失（需合伙人补充）
+      requires_human_confirm: true
+    CONFLICT:
+      meaning: 事实性冲突（禁止自动合并）
+      requires_human_confirm: true
+      blocks_publish: true
+    STYLE:
+      meaning: 风格不一致（供统稿处理）
+      requires_human_confirm: false
+    APPROVED:
+      meaning: 合伙人已确认
+      requires_human_confirm: false
+    RESOLVED:
+      meaning: 冲突已裁定解决
+      requires_human_confirm: false
+
+  csv_schema:
+    columns: [uuid, 章节号, 节号, 原句, sentence_md5, 标签, 修正建议, 合伙人填写, 合伙人备注, 状态]
+    convenience_features:
+      - dropdown_options_in_partner_column
+      - uuid_tracking_for_traceability
+      - 核对方向引导_in_comments
+    status_values: [pending, confirmed, resolved]
+
+  stages:
+    - stage: sentence_tagging
+      agent: tb-reviewer (proofreading mode)
+      output: annotated draft (draft_proofread.md)
+    - stage: csv_generation
+      agent: tb-reviewer (proofreading mode)
+      output: proofread_feedback.csv
+    - stage: human_confirmation
+      agent: external_collaborator
+      input: proofread_feedback.csv
+      output: csv_with_answers
+    - stage: draft_merge
+      agent: tb-reviewer (proofreading mode)
+      input: csv_with_answers + annotated draft
+      output: proofread_merged_draft.md
+
+  skill_location: "{{project_root}}/.claude/skills/tb-proofread/"  # 项目级 skill
+  csv_template: "{{project_root}}/.claude/skills/tb-proofread/references/proofread_feedback_template.csv"
+
+# === consolidate_protocol（统稿协议）===
+consolidate_protocol:
+  description: 跨章节风格统一标准协议（全局视图，串行执行）
+  applicability: multi-chapter textbook project
+  stage: CONSOLIDATE
+  parallelizable: false  # 必须串行（全局视图）
+  prerequisite:
+    all_chapters_status: PROOFREAD_COMPLETE
+    all_csv_confirmed: true
+
+  dimensions:
+    terminology_consistency:
+      score_name: 术语一致性
+      weight: 20
+      min_threshold: 80
+    format_consistency:
+      score_name: 格式统一性
+      weight: 20
+      min_threshold: 75
+    figure_table_continuity:
+      score_name: 图表编号连续性
+      weight: 20
+      min_threshold: 100  # 编号冲突为硬阻塞
+    content_completeness:
+      score_name: 内容完整性
+      weight: 20
+      min_threshold: 75
+    conflict_resolution_rate:
+      score_name: 冲突解决率
+      weight: 20
+      min_threshold: 100  # CONFLICT 未解决为硬阻塞
+
+  outputs:
+    consolidated_draft: consolidated_draft.md
+    terminology_report: 术语统一记录.md
+    figure_table_map: figure_table_map_v{N}.md
+    format_report: format_consistency_report.md
+    conflict_report: conflict_report.md  # 如有冲突则必须裁定后才能发布
+    style_guide_version_update: 风格规范文档版本号+0.1
+
+  blocking_conditions:
+    - unconfirmed_csv_remaining > 0
+    - conflict_unresolved_count > 0
+    - figure_table_numbering_conflict: true
+    - consolidated_score < 80
+
+  skill_location: "~/.hermes/skills/tb-consolidation/"  # 系统级 skill（增强版 v1.3）
+  style_guide_location: "{{project_root}}/00-系统规则/风格规范文档.md"
+  glossary_location: "{{project_root}}/00-系统规则/术语表.md"  # 可选，缺失则降级
+
+# ═════════════════════════════════════════════════════════════════════
+# PART 4: P-Layer 感知层 + C-Layer 坍缩层（v1.8新增）
+# ═════════════════════════════════════════════════════════════════════
+# P-Layer · 感知层（自动激活，输出不外显，驱动路由决策）
+# ─────────────────────────────────────────────────────────────────────
+# 感知扫描：用户输入进入 → SAT状态机之前执行
+#   P1·领域感知    → 一级领域词（由 domain profile 提供）
+#   P2·认知层级    → 操作级(<3步)/策略级(3-8步)/哲学级(≥8步)
+#   P3·情绪捕捉    → 急迫/焦虑/疲惫/愤怒 → 暂停+标记后再继续
+# 感知结果注入路由决策：不进入最终输出
+#
+# C-Layer · 坍缩层（置信度<90% 或复杂策略时激活）
+# ─────────────────────────────────────────────────────────────────────
+# 动态坍缩为3-5人专家团队：
+#   常驻(1-2)：苏格拉底导师（追问收敛）+ 魔鬼代言人（逻辑猎手）
+#   动态(2-3)：按领域激活：病毒学家/生信学家/教育学家/评审专家/认知科学家
+# 专家池：
+#   病毒学：{{pathogen_keywords}}（由 domain profile 提供，见 plugins/<domain>/domain-examples.yaml）
+#   生信：序列/进化树/GISAID/Nextclade/NCBI
+#   教学：教材/课件/学习目标/评估/Bloom
+#   基金/学术：基金/SCI/审稿/职称
+#   认知：认知负荷/教学策略/学习理论
+# 激活链路：感知结果 → 坍缩引擎 → 组建团队 → 执行 → 团队解散
+#
+# 4R · 知识打磨（联网检索任务专用，tb-researcher 已嵌入）
+# ─────────────────────────────────────────────────────────────────────
+# Research → Reflect → Run → Refine → [最多3循环]
+# Research: 检索结果相关？覆盖度够？
+# Reflect:   概念清晰？证据覆盖核心？
+# Run:       能形成结构化答案？
+# Refine:    值得沉淀？格式规范？
+# 迭代退出：4项全达标 或 达最大循环(3次)
+#
+# SoT-BoT · 骨架优先输出（复杂输出生成时启用）
+# ─────────────────────────────────────────────────────────────────────
+# 阶段1-Skeleton：输出骨架（不填充细节）
+#   ## [主要结论/主题]
+#   ### [支撑点A] — 概要
+#   ### [支撑点B] — 概要
+# 阶段2-BoT：并行填充各支撑点详细内容
+# 中间推理存储在草稿buffer，不进入最终输出
+#
+# 对抗三角自检（tb-reviewer/大型输出任务启用）
+# ─────────────────────────────────────────────────────────────────────
+# 三角：生成器初稿 → 批评者三维度质疑 → 优化器精炼 → 闭环验证
+#   批评三维度：逻辑漏洞 | 遗漏项 | 约束违反
+#   优化器：删除装饰，补充缺口
+#   闭环：批评项未清零 → 拒绝输出，返回重做
+# ═════════════════════════════════════════════════════════════════════
+# 版本历史（按时间倒序）
+# ═════════════════════════════════════════════════════════════════════
+# V1.7 | 2026-04-28 | 新增 proofread_protocol + consolidate_protocol（校稿与统稿协议）
+#       | 泛化路径：适用于所有 tb_* 教材编写系统
+#       | 标签体系：6标签 UUID 格式 / CSV 中文表头 / 阻塞条件明确
+# V1.6 | 2026-04-26 | 遗传变异机制顶层设计同步
+# V1.5 | 2026-04-25 | 新增 auto_propagation_policy
+# V1.4 | 2026-04-21 | 融入 archive/standalone/12-遗传协议.md
+# V1.3 | 2026-04-20 | 修复 H6 污染
+# V1.0 | 2026-04-11 | 初建
+# ═════════════════════════════════════════════════════════════════════
+# V1.8 | 2026-06-25 | 新增 dualrun_required（DRA 双跑冗余 · TD-57）
+# ═════════════════════════════════════════════════════════════════════
+# PART 13: DRA 双跑冗余架构（v1.8 新增 · TD-57）
+# ═════════════════════════════════════════════════════════════════════
+# 强制清单：教材特化 skill（第一跑）× 通用 skill（第二跑）串行双跑
+# 注入时机：Agent 启动时由 agent_phase_loader.inject_dualrun_required() 读取
+# 强制执行：L3 Gate 阻断（composite-phase-gate.sh / gate-visualize.sh）
+# ═════════════════════════════════════════════════════════════════════
+dualrun_required:
+  description: "DRA 双跑强制清单：教材特化 skill（第一跑）× 通用 skill（第二跑）"
+  inherit: "fixed"
+  phases:
+    PRODUCE_end:
+      trigger: "PRODUCE 阶段结束前"
+      first: ["tb-writing-style"]
+      second: ["去AI味", "humanizer-zh"]
+      output: "review/dualrun_humanizer.csv"
+    VISUALIZE:
+      trigger: "VISUALIZE 阶段"
+      first: ["tb-visual-design"]
+      second: ["scientific-visualization", "baoyu-imagine"]
+      output: "review/dualrun_visual.csv"
+      config:
+        textbook_mode: true  # 禁用 MANDATORY graphical abstract
+    VERIFY_R3:
+      trigger: "VERIFY R3 轮次"
+      first: ["tb-evidence-anchor"]
+      second: ["paper-lookup"]  # + pubmed MCP
+      output: "review/evidence_chain.csv"
+
+# ═══════════════════════════════════════════════════════════
+# PART 14: 资料-审核-循环门禁配置（v1.9 新增 · TD-66 · Sub-A）
+# ═══════════════════════════════════════════════════════════
+retrieval_gate_config:
+  description: "资料-审核-循环门禁配置（Sub-A v2.4）"
+  inherit: "fixed"
+  gap_approval:
+    description: "缺口审批筛选（B3 缺口闭环）：writer 起草期登记的缺口须经主理人审批方可进入检索队列"
+    inherit: "fixed"
+    trigger: "PRODUCE 交付草稿后、进入 RETRIEVE 之前"
+    ledger_path: "章节/{ch##}/gaps.md"
+    tag_format: "[需补数据·{ch##}-g{NN}]"
+    min_approved: 3
+    max_approved: 10
+    on_overflow: "按 priority 截断至上限（P0 全留），其余标 deferred（不得丢弃）"
+    on_underflow: "扩批至相邻缺口；仍不足则显式标注「本轮不足 3 个」豁免"
+    verdict_states: ["approved", "rejected", "deferred"]
+    gap_type_ref: "references/gap-types.md"
+    validator: "scripts/check_gap_flow.py"
+  gate1_specify:
+    description: "门禁1：SPECIFY 前，knowledge_scope 主题覆盖率 ≥ 70%"
+    trigger: "chapter_spec.md 完成"
+    spec_coverage_threshold: 0.70
+  gate2_retrieve:
+    description: "门禁2：RETRIEVE 后，资料质量三重规则"
+    trigger: "retrieval/index.md 完成"
+    smart_judgment:
+      coverage_threshold: 0.50
+      conflict_threshold: 0.30
+      outdated_ratio_threshold: 0.70
+      outdated_years: 5
+    on_fail:
+      auto_action: "loop"
+      user_options: ["loop", "manual"]
+    max_loop_count: 5
+  triple_track_config:
+    description: "三轨并行配置（manual/auto/internal）"
+    tracks:
+      manual:
+        source: "user_input"
+        priority: "override"
+        weight_default: 0.9
+        format: "single_file"
+      auto:
+        source: "4_layer_parallel"
+        priority: "auto"
+        weight_default: 0.6
+        format: "multi_file"
+      internal:
+        source: "tb_<subject>/05-领域知识/"
+        priority: "base"
+        weight_default: 0.7
+        format: "domain_kb"
+    merge_strategy: "timestamp_topic_weighted"

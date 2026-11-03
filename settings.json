@@ -1,0 +1,23 @@
+{
+  "agent": "smart-textbook-v2-team-lead",
+  "env": {
+    "STT_PACKAGE_ROOT": "$PACKAGE_ROOT",
+    "STT_WORKSPACE": "$WORK_ROOT"
+  },
+  "context": {
+    "loadSkills": [
+      "rule-inheritance",
+      "gap-driven-loop"
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Read(**)",
+      "Glob(**)",
+      "Grep(**)",
+      "Bash(python3:*)",
+      "Write(**)",
+      "Edit(**)"
+    ]
+  }
+}

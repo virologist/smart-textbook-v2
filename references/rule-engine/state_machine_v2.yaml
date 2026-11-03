@@ -1,0 +1,356 @@
+# state_machine_v2.yaml — 13状态可执行状态机
+# 版本: v2.1 | 日期: 2026-11-02 | 替代: 01-状态机.md（纯自然语言）
+# 【SSOT 唯一权威】B0-Q1 裁决（2026-11-02）：本文件是 13 态状态机的唯一机器可读权威定义。
+#   - 已并入 schemas/state_machine_v2.yaml（112 行旧版）的独有段：verify_4_round_loop / handoff_v3_1 / handoff_v2_v3_compatibility
+#   - schemas/state_machine_v2.yaml 已废弃为指针文件，禁止在其中复述 13 态枚举
+#   - 其余文档（01-状态机.md / 09-系统架构.md / schemas/agent-common/io.md / chapter_rules.yaml）只许引用本文件，不得复述枚举
+#   - 机械校验：scripts/test_contract_sync.py（B1 起），文档与权威源不一致即 exit 1
+# 用途：orchestration_gates.py / review_round_gates.py / produce_gates.py 的状态校验依据
+
+schema_version: "2.1"
+
+# ═══════════════════════════════════════════════════════════
+# 13状态主路径定义（CR-001: 补全PROOFREAD + CONSOLIDATION）
+# ═══════════════════════════════════════════════════════════
+main_path:
+  sequence:
+    - BOOTSTRAP
+    - INTAKE
+    - CLARIFY
+    - SPECIFY
+    - RETRIEVE
+    - PRODUCE
+    - VERIFY
+    - PROOFREAD
+    - CONSOLIDATION
+    - VISUALIZE
+    - ASSEMBLE
+    - DELIVER
+    - LEARN
+
+# ═══════════════════════════════════════════════════════════
+# 状态定义（含入口条件、出口条件、负责Agent、输出物）
+# ═══════════════════════════════════════════════════════════
+states:
+
+  BOOTSTRAP:
+    description: "首次创建项目或目录未初始化"
+    responsible_agent: "tb-chief-editor"
+    entry_conditions:
+      - "项目目录不存在或缺少 CLAUDE.md"
+      - "chapter_rules.yaml 不存在"
+    exit_conditions:
+      - "CLAUDE.md 存在且非空"
+      - "textbook_rules.yaml 存在"
+      - "project_registry.yaml 已写入"
+    output_artifacts:
+      - "CLAUDE.md"
+      - "textbook_rules.yaml"
+      - "project_registry.yaml"
+    next_valid: ["INTAKE", "SPECIFY"]
+
+  INTAKE:
+    description: "用户投递材料"
+    responsible_agent: "tb-chief-editor"
+    entry_conditions:
+      - "有素材文件或文档"
+    exit_conditions:
+      - "01-任务摄入/converted/ 目录有内容"
+      - "01-任务概要.md 存在"
+    output_artifacts:
+      - "01-任务摄入/01-任务概要.md"
+    next_valid: ["CLARIFY", "SPECIFY"]
+
+  CLARIFY:
+    description: "信息不足/边界不清时需求澄清"
+    responsible_agent: "tb-chief-editor"
+    sat_enforcement: true
+    entry_conditions:
+      - "SAT置信度 < 90%"
+    exit_conditions:
+      - "clarify_contract.md 所有项目均为✓"
+      - "SAT置信度 ≥ 90%"
+    output_artifacts:
+      - "clarify_contract.md"
+    next_valid: ["SPECIFY"]
+
+  SPECIFY:
+    description: "write_plan 可执行性通过后进入规格设计"
+    responsible_agent: "tb-chief-editor + tb-didactic-planner"
+    entry_conditions:
+      - "clarify_contract.md 全部✓"
+      - "write_plan.md 批次定义清晰"
+      - "chapter_spec.md 教学目标5维齐全"
+    gates:
+      A_sat: "SAT置信度≥90%"
+      B_plan: "write_plan可执行（引用文件存在/字数估算±20%）"
+      C_spec: "chapter_spec教学完备性5维齐全"
+    exit_conditions:
+      - "chapter_spec.md 存在"
+      - "write_plan.md 存在"
+      - "三道门(A/B/C)全部通过"
+    output_artifacts:
+      - "chapter_spec.md"
+      - "write_plan.md"
+    next_valid: ["RETRIEVE", "PRODUCE"]
+
+  RETRIEVE:
+    description: "文献与知识检索"
+    responsible_agent: "tb-researcher"
+    entry_conditions:
+      - "chapter_spec.md 和 write_plan.md 存在"
+    exit_conditions:
+      - "检索摘要文件存在于 retrieval/summaries/"
+    output_artifacts:
+      - "retrieval/summaries/*.md"
+    next_valid: ["PRODUCE"]
+
+  PRODUCE:
+    description: "章节正文写作"
+    responsible_agent: "tb-writer"
+    sub_phases:
+      - name: "数据闭环"
+        max_iterations: 3
+        steps:
+          - "tb-researcher 定向检索"
+          - "tb-reviewer 数据准确性审查"
+          - "tb-educator 图表生成"
+    entry_conditions:
+      - "RETRIEVE完成或跳过"
+    exit_conditions:
+      - "draft.md 字数≥目标×80%"
+      - "所有[待核实]已处理"
+    gates:
+      draft_complete: "draft.md字数达标"
+      pending_resolved: "pending_evidence全部闭合"
+    output_artifacts:
+      - "draft.md"
+      - "assets.md"
+    next_valid: ["VERIFY"]
+
+  VERIFY:
+    description: "四轮审查"
+    responsible_agent: "tb-reviewer"
+    rounds:
+      R1:
+        dimension: "结构完整性"
+        min_output: "review/R1_report.md"
+      R2:
+        dimension: "内容深度+覆盖率"
+        min_output: "review/R2_report.md"
+      R3:
+        dimension: "论证核验+证据溯源+图表"
+        min_output: "review/R3_report.md"
+        sub_rounds:
+          R3_5: "图表数据核验"
+          R3_6: "图表美学评判"
+      R4:
+        dimension: "风格+AI腔+术语"
+        min_output: "review/R4_report.md"
+    max_revisions: 2
+    circuit_breaker_threshold: 2
+    entry_conditions:
+      - "draft.md 存在且≥500行"
+    exit_conditions:
+      - "circuit_broken = false"
+      - "四轮审查全部完成"
+      - "所有Critical问题已修复"
+    output_artifacts:
+      - "review/R1_report.md"
+      - "review/R2_report.md"
+      - "review/R3_report.md"
+      - "review/R4_report.md"
+    next_valid: ["PRODUCE", "PROOFREAD"]
+
+  # ── CR-001: PROOFREAD（逐句校对，可跳过） ──────
+  PROOFREAD:
+    description: "逐句校对与标注"
+    responsible_agent: "tb-reviewer"
+    skippable: true
+    skip_condition: "无外部合伙人初稿或用户显式跳过"
+    modes:
+      independent:
+        trigger: "VERIFY通过后，存在外部合伙人初稿需要校对"
+        position: "VERIFY → PROOFREAD → CONSOLIDATION（主路径，完整阶段）"
+      embedded:
+        trigger: "VERIFY R4 风格审查时检测到外部贡献内容"
+        position: "VERIFY R4 内联执行（不作为独立阶段，产出嵌入R4_report）"
+    entry_conditions:
+      - "VERIFY circuit_broken = false"
+      - "draft.md 存在（外部章节或合伙人初稿）"
+    exit_conditions:
+      - "proofread_feedback.csv 存在且所有 FIXED/STYLE 项已处理"
+      - "draft_proofread.md 生成（含逐句UUID标注，独立模式）"
+      - "R4_report.md 含 proofread 节（嵌入模式）"
+    output_artifacts:
+      - "proofread_feedback.csv"
+      - "draft_proofread.md"
+    next_valid: ["CONSOLIDATION", "VISUALIZE"]
+
+  # ── CR-001: CONSOLIDATION（全书统稿） ──────
+  CONSOLIDATION:
+    description: "跨章节一致性统稿与版面统一"
+    responsible_agent: "tb-chief-editor + Skill: tb-consolidation"
+    entry_conditions:
+      - "PROOFREAD完成 或 跳过"
+    exit_conditions:
+      - "draft_consolidated.md 存在"
+      - "跨章节术语/引用/格式一致性验证通过"
+    output_artifacts:
+      - "draft_consolidated.md"
+    next_valid: ["VISUALIZE"]
+
+  VISUALIZE:
+    description: "图表设计与生成"
+    responsible_agent: "tb-visual-designer + tb-educator"
+    entry_conditions:
+      - "VERIFY circuit_broken = false"
+      - "四轮审查全部完成"
+    exit_conditions:
+      - "visual_plan.md 存在"
+      - "data_spec.yaml 存在"
+      - "所有图表占位符已替换为实际图片"
+    output_artifacts:
+      - "visual_plan.md"
+      - "data_spec.yaml"
+      - "assets/fig-*.png"
+    next_valid: ["ASSEMBLE"]
+
+  ASSEMBLE:
+    description: "统稿与图文编排"
+    responsible_agent: "tb-chief-editor"
+    entry_conditions:
+      - "VERIFY circuit_broken = false"
+      - "PROOFREAD完成或跳过（逐句UUID标注）"
+    exit_conditions:
+      - "draft_consolidated.md 存在"
+    output_artifacts:
+      - "draft_consolidated.md"
+    next_valid: ["DELIVER"]
+
+  DELIVER:
+    description: "导出成品"
+    responsible_agent: "tb-chief-editor"
+    entry_conditions:
+      - "draft_consolidated.md 存在"
+    exit_conditions:
+      - "docx文件导出成功"
+    output_artifacts:
+      - "10-导出成品/ch*.docx"
+    next_valid: ["LEARN"]
+
+  LEARN:
+    description: "经验沉淀与自进化"
+    responsible_agent: "tb-chief-editor"
+    entry_conditions:
+      - "DELIVER完成"
+    exit_conditions:
+      - "经验已写入 lessons.md"
+    output_artifacts:
+      - "CLAUDE.md更新"
+    next_valid: ["BOOTSTRAP"]
+
+# ═══════════════════════════════════════════════════════════
+# 状态转换规则
+# ═══════════════════════════════════════════════════════════
+transitions:
+
+  # 允许的向前转换
+  forward_allowed:
+    BOOTSTRAP: ["INTAKE", "SPECIFY"]
+    INTAKE: ["CLARIFY", "SPECIFY"]
+    CLARIFY: ["SPECIFY"]
+    SPECIFY: ["RETRIEVE", "PRODUCE"]
+    RETRIEVE: ["PRODUCE"]
+    PRODUCE: ["VERIFY"]
+    VERIFY: ["PRODUCE", "PROOFREAD"]
+    PROOFREAD: ["CONSOLIDATION", "VISUALIZE"]
+    CONSOLIDATION: ["VISUALIZE"]
+    VISUALIZE: ["ASSEMBLE"]
+    ASSEMBLE: ["DELIVER"]
+    DELIVER: ["LEARN"]
+    LEARN: ["BOOTSTRAP"]
+
+  # 允许的回退转换（有约束）
+  backward_allowed:
+    VERIFY→PRODUCE:
+      max_count: 2
+      reason: "返修后重新审查"
+    ASSEMBLE→VERIFY:
+      reason: "统稿中发现新问题"
+    PROOFREAD→VERIFY:
+      reason: "校对发现需返修"
+    CONSOLIDATION→PROOFREAD:
+      reason: "统稿发现校对遗漏"
+    SPECIFY→CLARIFY:
+      reason: "write_plan不可执行"
+
+  # 禁止的转换
+  forward_forbidden:
+    BOOTSTRAP→PRODUCE: "必须经过SPECIFY/RETRIEVE"
+    PRODUCE→CLARIFY: "回退到需求澄清"
+    VERIFY→INTAKE: "禁止跳回素材摄入"
+
+# ═══════════════════════════════════════════════════════════
+# SAT Protocol 集成
+# ═══════════════════════════════════════════════════════════
+sat_protocol:
+  fztazzen_threshold: 90
+  max_rounds: 5
+  max_questions_per_round: 5
+  freeze_states: ["CLARIFY", "SPECIFY"]
+
+# ═══════════════════════════════════════════════════════════
+# USoT 状态源约束
+# ═══════════════════════════════════════════════════════════
+usot_constraint:
+  status_authority: "chapter_rules.yaml"
+  forbidden_as_status_authority:
+    - "handoff.md"
+    - "bootstrap_progress.yaml"
+    - "run_log.jsonl"
+  context_sources:
+    - "handoff.md"  # 允许作为上下文交接源读取，禁止作为状态权威源
+  forbidden_fields:
+    - "status:"
+    - "bootstrap_completed:"
+    - "current_phase:"
+
+# ═══════════════════════════════════════════════════════════
+# 4 轮 VERIFY vs 13 态 (P2-8 boundary clarification)
+# （并入自 schemas/state_machine_v2.yaml v2.0 · B1 契约归一 2026-11-02）
+# ═══════════════════════════════════════════════════════════
+# VERIFY 是 13 态中单一状态, 但其内部是 4 轮循环:
+#   R1 结构审查 → R2 深度审查 → R3 数据核验+引用核实 → R4 风格审查
+#   R4 通过 → PROOFREAD; R1/R2/R3 阻塞 → 回 PRODUCE 返修
+#
+# 不是 4 个独立态, 也不是 13 态之外的 5 态扩展
+# 详见: AGENTS.md § 防幻觉闭环
+verify_4_round_loop:
+  responsible: "tb-reviewer"
+  within_state: "VERIFY"
+  rounds:
+    R1: {focus: "结构", gate: "Pass→R2 / Fail→PRODUCE"}
+    R2: {focus: "深度", gate: "Pass→R3 / Fail→PRODUCE"}
+    R3: {focus: "数据+引用", gate: "Pass→R4 / Fail→PRODUCE"}
+    R4: {focus: "风格", gate: "Pass→PROOFREAD / Fail→PRODUCE"}
+
+# ═══════════════════════════════════════════════════════════
+# handoff v3.1 (P2-2 升级)
+# （并入自 schemas/state_machine_v2.yaml v2.0 · B1 契约归一 2026-11-02）
+# ═══════════════════════════════════════════════════════════
+# 5 新字段 (向后兼容 v2):
+handoff_v3_1:
+  runtime_state:
+    pending_rerun: 0           # 0..N 返修计数 (H11 门禁)
+    round_counter: 0          # 0..4 VERIFY 多轮
+    quality_score: null        # 0.0..1.0 Round 4 评估
+    last_completed_phase: null # BOOTSTRAP/INTAKE/CLARIFY/SPECIFY/RETRIEVE/PRODUCE/VERIFY/PROOFREAD/CONSOLIDATION/VISUALIZE/ASSEMBLE/DELIVER/LEARN
+  context_management:
+    read_files: []             # §一.1 先读清单 (避免重复 Read, 路径列表)
+
+handoff_v2_v3_compatibility: |
+  - v2 handoff (无 v3 字段) 仍正常
+  - v3 handoff 必须含全部 5 v3 字段
+  - ch_01 DELIVER: v3 字段全 null/0 (向后兼容)
+  - ch_02 VERIFYGING: 3 字段有值
